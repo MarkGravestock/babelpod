@@ -55,6 +55,43 @@ The built files will be in the `dist` directory.
 npm run preview
 ```
 
+### Running Tests
+
+```bash
+# Run tests once
+npm test -- --run
+
+# Run tests in watch mode
+npm test
+
+# Run tests with UI
+npm run test:ui
+```
+
+## 🚀 Deployment
+
+This project is configured for automatic deployment to GitHub Pages.
+
+### Live Demo
+
+Visit the live app at: `https://markgravestock.github.io/babelpod/`
+
+### How it Works
+
+1. Push to `main` or `master` branch
+2. GitHub Actions automatically:
+   - Runs linter
+   - Runs all tests (35 tests)
+   - Builds the application
+   - Deploys to GitHub Pages
+
+### Setting Up GitHub Pages
+
+1. Go to your repository Settings → Pages
+2. Under "Build and deployment", select:
+   - Source: **GitHub Actions**
+3. The workflow will automatically deploy on the next push to main
+
 ## 📖 How to Use
 
 1. **Load a Podcast**:
