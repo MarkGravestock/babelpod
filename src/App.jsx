@@ -12,9 +12,18 @@ function App() {
   const [sourceLang, setSourceLang] = useState('es'); // Default: Spanish
   const [targetLang, setTargetLang] = useState('en'); // Default: English
 
-  const handlePodcastLoad = async (feedUrl) => {
+  const handlePodcastLoad = async (feedUrlOrData, isDirectData = false) => {
     try {
-      const podcastData = await parsePodcastFeed(feedUrl);
+      let podcastData;
+
+      if (isDirectData) {
+        // Direct podcast data (from demo)
+        podcastData = feedUrlOrData;
+      } else {
+        // URL - need to parse RSS feed
+        podcastData = await parsePodcastFeed(feedUrlOrData);
+      }
+
       setPodcast(podcastData);
       setEpisodes(podcastData.episodes);
       setSelectedEpisode(null); // Reset selection when loading new podcast

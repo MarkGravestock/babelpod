@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loadDemoPodcast } from '../data/demoPodcast';
 import './PodcastLoader.css';
 
 export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
@@ -6,16 +7,11 @@ export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Sample podcast feeds for testing
+  // Sample podcast feeds for testing (may have CORS issues)
   const sampleFeeds = [
     {
-      name: 'Spanish Pod (Example)',
-      url: 'https://feeds.megaphone.fm/ESP1277329447',
-      language: 'Spanish'
-    },
-    {
-      name: 'Coffee Break Spanish',
-      url: 'https://coffeebreaklanguages.com/coffeebreakspanish-podcast/',
+      name: 'NPR Spanish',
+      url: 'https://feeds.npr.org/510318/podcast.xml',
       language: 'Spanish'
     }
   ];
@@ -54,8 +50,40 @@ export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
     }
   };
 
+  const loadDemo = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const demoPodcast = await loadDemoPodcast();
+      await onPodcastLoad(demoPodcast, true); // Pass true to indicate it's demo data
+    } catch (err) {
+      setError(err.message || 'Failed to load demo podcast.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="podcast-loader">
+      {/* Demo Mode - Highlighted */}
+      <div className="demo-section">
+        <button
+          onClick={loadDemo}
+          disabled={isLoading}
+          className="demo-btn"
+        >
+          {isLoading ? '⏳ Loading...' : '🎧 Try Demo Podcast (No CORS Issues!)'}
+        </button>
+        <p className="demo-description">
+          Load a demo podcast with sample episodes to test the translation feature
+        </p>
+      </div>
+
+      <div className="separator">
+        <span>or load from RSS feed</span>
+      </div>
+
       <form onSubmit={handleSubmit} className="feed-form">
         <div className="input-group">
           <input
@@ -79,7 +107,7 @@ export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
       )}
 
       <div className="sample-feeds">
-        <p className="sample-label">Try a sample podcast:</p>
+        <p className="sample-label">Try a real podcast feed (may have CORS issues):</p>
         <div className="sample-buttons">
           {sampleFeeds.map((feed, index) => (
             <button

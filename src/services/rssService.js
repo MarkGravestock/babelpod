@@ -1,70 +1,94 @@
-// Browser-compatible RSS parser (no Node.js dependencies)
+// Browser-compatible RSS parser with multiple CORS proxy fallbacks
 
-// Use a CORS proxy for development to avoid CORS issues
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+// Try multiple CORS proxies in order
+const CORS_PROXIES = [
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest=',
+  // Direct fetch (will only work if the feed has CORS headers)
+  ''
+];
 
 export async function parsePodcastFeed(feedUrl) {
-  try {
-    // Fetch the RSS feed through CORS proxy
-    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(feedUrl)}`;
-    const response = await fetch(proxyUrl);
+  let lastError = null;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch feed: ${response.statusText}`);
-    }
+  // Try each CORS proxy
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const proxyUrl = proxy ? `${proxy}${encodeURIComponent(feedUrl)}` : feedUrl;
+      console.log(`Attempting to fetch from: ${proxyUrl}`);
 
-    const xmlText = await response.text();
+      const response = await fetch(proxyUrl, {
+        headers: {
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+        }
+      });
 
-    // Parse XML using DOMParser (browser native)
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-    // Check for parsing errors
-    const parserError = xmlDoc.querySelector('parsererror');
-    if (parserError) {
-      throw new Error('Invalid RSS feed format');
-    }
+      const xmlText = await response.text();
 
-    // Extract podcast info
-    const channel = xmlDoc.querySelector('channel');
-    if (!channel) {
-      throw new Error('Invalid RSS feed: No channel element found');
-    }
+      // Parse XML using DOMParser (browser native)
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
 
-    const title = getElementText(channel, 'title');
-    const description = getElementText(channel, 'description');
-    const imageUrl = getImageUrl(channel);
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Invalid RSS feed format');
+      }
 
-    // Extract episodes
-    const items = Array.from(xmlDoc.querySelectorAll('item'));
-    const episodes = items.map((item, index) => {
-      const enclosure = item.querySelector('enclosure');
-      const audioUrl = enclosure?.getAttribute('url');
+      // Extract podcast info
+      const channel = xmlDoc.querySelector('channel');
+      if (!channel) {
+        throw new Error('Invalid RSS feed: No channel element found');
+      }
 
-      // Only include items with audio
-      if (!audioUrl) return null;
+      const title = getElementText(channel, 'title');
+      const description = getElementText(channel, 'description');
+      const imageUrl = getImageUrl(channel);
 
-      return {
-        id: getElementText(item, 'guid') || getElementText(item, 'link') || `episode-${index}`,
-        title: getElementText(item, 'title') || 'Untitled Episode',
-        description: getElementText(item, 'description') || '',
-        audioUrl: audioUrl,
-        duration: getElementText(item, 'itunes\\:duration'),
-        pubDate: getElementText(item, 'pubDate'),
-        image: getImageUrl(item) || imageUrl
+      // Extract episodes
+      const items = Array.from(xmlDoc.querySelectorAll('item'));
+      const episodes = items.map((item, index) => {
+        const enclosure = item.querySelector('enclosure');
+        const audioUrl = enclosure?.getAttribute('url');
+
+        // Only include items with audio
+        if (!audioUrl) return null;
+
+        return {
+          id: getElementText(item, 'guid') || getElementText(item, 'link') || `episode-${index}`,
+          title: getElementText(item, 'title') || 'Untitled Episode',
+          description: getElementText(item, 'description') || '',
+          audioUrl: audioUrl,
+          duration: getElementText(item, 'itunes\\:duration'),
+          pubDate: getElementText(item, 'pubDate'),
+          image: getImageUrl(item) || imageUrl
+        };
+      }).filter(ep => ep !== null);
+
+      const result = {
+        title: title || 'Unknown Podcast',
+        description: description || '',
+        image: imageUrl,
+        episodes
       };
-    }).filter(ep => ep !== null);
 
-    return {
-      title: title || 'Unknown Podcast',
-      description: description || '',
-      image: imageUrl,
-      episodes
-    };
-  } catch (error) {
-    console.error('RSS parsing error:', error);
-    throw new Error(`Failed to parse podcast feed: ${error.message}`);
+      console.log('Successfully parsed podcast:', result);
+      return result;
+
+    } catch (error) {
+      console.warn(`Failed with proxy ${proxy || 'direct'}:`, error.message);
+      lastError = error;
+      // Continue to next proxy
+    }
   }
+
+  // All proxies failed
+  console.error('All CORS proxies failed:', lastError);
+  throw new Error(`Failed to parse podcast feed: ${lastError?.message || 'All proxies failed'}. Try using the demo podcast instead.`);
 }
 
 // Helper function to get text content from an element
