@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PodcastLoader from './components/PodcastLoader';
 import EpisodeList from './components/EpisodeList';
 import AudioPlayer from './components/AudioPlayer';
+import HelpModal from './components/HelpModal';
 import { parsePodcastFeed } from './services/rssService';
 import './App.css';
 
@@ -11,26 +12,14 @@ function App() {
   const [selectedEpisode, setSelectedEpisode] = useState(null);
   const [sourceLang, setSourceLang] = useState('es'); // Default: Spanish
   const [targetLang, setTargetLang] = useState('en'); // Default: English
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  const handlePodcastLoad = async (feedUrlOrData, isDirectData = false) => {
-    try {
-      let podcastData;
-
-      if (isDirectData) {
-        // Direct podcast data (from demo)
-        podcastData = feedUrlOrData;
-      } else {
-        // URL - need to parse RSS feed
-        podcastData = await parsePodcastFeed(feedUrlOrData);
-      }
-
-      setPodcast(podcastData);
-      setEpisodes(podcastData.episodes);
-      setSelectedEpisode(null); // Reset selection when loading new podcast
-    } catch (error) {
-      console.error('Error loading podcast:', error);
-      throw error;
-    }
+  const handlePodcastLoad = async (feedUrl) => {
+    const podcastData = await parsePodcastFeed(feedUrl);
+    setPodcast(podcastData);
+    setEpisodes(podcastData.episodes);
+    setSelectedEpisode(null); // Reset selection when loading new podcast
+    return podcastData; // Return for the loader to save
   };
 
   const handleEpisodeSelect = (episode) => {
@@ -47,19 +36,23 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1 className="app-title">
-          🌍 BabelPod
-        </h1>
+        <div className="header-content">
+          <h1 className="app-title">🌍 BabelPod</h1>
+          <button
+            className="help-btn"
+            onClick={() => setIsHelpOpen(true)}
+            title="Help & Instructions"
+          >
+            ❓ Help
+          </button>
+        </div>
         <p className="app-subtitle">
           Learn languages through podcasts with instant translation
         </p>
       </header>
 
       <main className="app-main">
-        <PodcastLoader
-          onPodcastLoad={handlePodcastLoad}
-          onEpisodeSelect={handleEpisodeSelect}
-        />
+        <PodcastLoader onPodcastLoad={handlePodcastLoad} />
 
         {selectedEpisode && (
           <div className="player-section">
@@ -80,14 +73,12 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>
-          💡 <strong>Tip:</strong> When you hear something you don't understand,
-          click "Rewind 15s & Translate" to hear it in English!
-        </p>
         <p className="footer-note">
           Built with React • Translation powered by MyMemory & Web Speech API
         </p>
       </footer>
+
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 }
