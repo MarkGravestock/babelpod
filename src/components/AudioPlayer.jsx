@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { translateText, speakText } from '../services/translationService';
+import { translateAudioSegment, speakText } from '../services/translationService';
 import './AudioPlayer.css';
 
-export default function AudioPlayer({ episode, sourceLang = 'es', targetLang = 'en' }) {
+export default function AudioPlayer({ episode, settings = {} }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -67,34 +67,28 @@ export default function AudioPlayer({ episode, sourceLang = 'es', targetLang = '
       setIsTranslating(true);
       setTranslationStatus('Preparing to translate last 15 seconds...');
 
-      // Calculate the segment we want to translate
-      const endTime = audio.currentTime;
-      const startTime = Math.max(0, endTime - rewindSeconds);
-      const segmentDuration = endTime - startTime;
+      const sourceLang = settings.sourceLang || 'es';
+      const targetLang = settings.targetLang || 'en';
 
-      setTranslationStatus(`Getting transcript for ${segmentDuration.toFixed(1)}s segment...`);
+      setTranslationStatus('Transcribing audio...');
 
-      // For PoC, we'll use a simplified approach:
-      // Since we can't easily transcribe pre-recorded audio without a backend,
-      // we'll demonstrate the concept with a mock transcript
-      // In production, you'd send the audio segment to Whisper API
-
-      // Mock original text (in a real app, this would come from Whisper)
-      const mockOriginalText = generateMockTranscript(segmentDuration);
-
-      setTranslationStatus('Translating to English...');
-
-      // Translate the text
-      const translatedText = await translateText(mockOriginalText, sourceLang, targetLang);
+      // Use the new transcription strategy pattern
+      const result = await translateAudioSegment(
+        audio,
+        rewindSeconds,
+        sourceLang,
+        targetLang,
+        settings
+      );
 
       setTranslationStatus('Speaking translation...');
 
-      // Rewind the audio
-      audio.currentTime = startTime;
+      // Rewind the audio to the start of the segment
+      audio.currentTime = result.segment.startTime;
 
       // Speak the translation using browser TTS
       const targetLangCode = targetLang === 'en' ? 'en-US' : targetLang === 'es' ? 'es-ES' : targetLang;
-      await speakText(translatedText, targetLangCode);
+      await speakText(result.translatedText, targetLangCode);
 
       setTranslationStatus('Translation complete!');
 
@@ -116,29 +110,6 @@ export default function AudioPlayer({ episode, sourceLang = 'es', targetLang = '
     } finally {
       setIsTranslating(false);
     }
-  };
-
-  // Generate mock transcript based on duration (for PoC demonstration)
-  const generateMockTranscript = (duration) => {
-    const phrases = [
-      "Hola, bienvenidos a nuestro podcast.",
-      "Hoy vamos a hablar sobre la cultura española.",
-      "Es muy importante entender el contexto histórico.",
-      "La comida mediterránea es muy saludable.",
-      "El idioma español es hablado por millones de personas.",
-      "La música tradicional tiene muchas influencias.",
-      "Vamos a continuar con nuestra conversación.",
-    ];
-
-    // Select phrases to roughly match the duration (assuming ~3 seconds per phrase)
-    const numPhrases = Math.ceil(duration / 3);
-    const selectedPhrases = [];
-
-    for (let i = 0; i < numPhrases; i++) {
-      selectedPhrases.push(phrases[i % phrases.length]);
-    }
-
-    return selectedPhrases.join(' ');
   };
 
   const formatTime = (seconds) => {
