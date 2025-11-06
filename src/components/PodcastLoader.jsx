@@ -1,20 +1,47 @@
-import { useState } from 'react';
-import { loadDemoPodcast } from '../data/demoPodcast';
+import { useState, useEffect } from 'react';
 import './PodcastLoader.css';
 
-export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
+const STORAGE_KEY = 'babelpod_feeds';
+
+export default function PodcastLoader({ onPodcastLoad }) {
   const [feedUrl, setFeedUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [savedFeeds, setSavedFeeds] = useState([]);
 
-  // Sample podcast feeds for testing (may have CORS issues)
-  const sampleFeeds = [
-    {
-      name: 'NPR Spanish',
-      url: 'https://feeds.npr.org/510318/podcast.xml',
-      language: 'Spanish'
+  // Load saved feeds from local storage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        setSavedFeeds(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse saved feeds:', e);
+      }
     }
-  ];
+  }, []);
+
+  const saveFeedToStorage = (url, title) => {
+    const feed = {
+      url,
+      title: title || 'Untitled Podcast',
+      lastUsed: new Date().toISOString()
+    };
+
+    const updated = [
+      feed,
+      ...savedFeeds.filter(f => f.url !== url)
+    ].slice(0, 5); // Keep only last 5
+
+    setSavedFeeds(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  const removeFeed = (url) => {
+    const updated = savedFeeds.filter(f => f.url !== url);
+    setSavedFeeds(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,41 +51,19 @@ export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
       return;
     }
 
-    setIsLoading(true);
-    setError('');
-
-    try {
-      await onPodcastLoad(feedUrl);
-    } catch (err) {
-      setError(err.message || 'Failed to load podcast. Please check the URL and try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    await loadFeed(feedUrl);
   };
 
-  const loadSample = async (url) => {
-    setFeedUrl(url);
+  const loadFeed = async (url) => {
     setIsLoading(true);
     setError('');
 
     try {
-      await onPodcastLoad(url);
+      const podcastData = await onPodcastLoad(url);
+      saveFeedToStorage(url, podcastData.title);
+      setFeedUrl('');
     } catch (err) {
       setError(err.message || 'Failed to load podcast. Please check the URL and try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadDemo = async () => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const demoPodcast = await loadDemoPodcast();
-      await onPodcastLoad(demoPodcast, true); // Pass true to indicate it's demo data
-    } catch (err) {
-      setError(err.message || 'Failed to load demo podcast.');
     } finally {
       setIsLoading(false);
     }
@@ -66,24 +71,6 @@ export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
 
   return (
     <div className="podcast-loader">
-      {/* Demo Mode - Highlighted */}
-      <div className="demo-section">
-        <button
-          onClick={loadDemo}
-          disabled={isLoading}
-          className="demo-btn"
-        >
-          {isLoading ? '⏳ Loading...' : '🎧 Try Demo Podcast (No CORS Issues!)'}
-        </button>
-        <p className="demo-description">
-          Load a demo podcast with sample episodes to test the translation feature
-        </p>
-      </div>
-
-      <div className="separator">
-        <span>or load from RSS feed</span>
-      </div>
-
       <form onSubmit={handleSubmit} className="feed-form">
         <div className="input-group">
           <input
@@ -106,31 +93,34 @@ export default function PodcastLoader({ onPodcastLoad, onEpisodeSelect }) {
         </div>
       )}
 
-      <div className="sample-feeds">
-        <p className="sample-label">Try a real podcast feed (may have CORS issues):</p>
-        <div className="sample-buttons">
-          {sampleFeeds.map((feed, index) => (
-            <button
-              key={index}
-              onClick={() => loadSample(feed.url)}
-              disabled={isLoading}
-              className="sample-btn"
-            >
-              {feed.name} <span className="lang-badge">{feed.language}</span>
-            </button>
-          ))}
+      {savedFeeds.length > 0 && (
+        <div className="saved-feeds">
+          <h3 className="saved-label">Recent Podcasts</h3>
+          <div className="saved-list">
+            {savedFeeds.map((feed) => (
+              <div key={feed.url} className="saved-feed-item">
+                <button
+                  onClick={() => loadFeed(feed.url)}
+                  disabled={isLoading}
+                  className="saved-feed-btn"
+                >
+                  <span className="feed-title">{feed.title}</span>
+                  <span className="feed-date">
+                    {new Date(feed.lastUsed).toLocaleDateString()}
+                  </span>
+                </button>
+                <button
+                  onClick={() => removeFeed(feed.url)}
+                  className="remove-feed-btn"
+                  title="Remove from recent"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="info-box">
-        <h4>💡 How to use BabelPod:</h4>
-        <ol>
-          <li>Enter a podcast RSS feed URL or try a sample</li>
-          <li>Select an episode to play</li>
-          <li>Use standard controls: play/pause, rewind, skip</li>
-          <li>Click "Rewind 15s & Translate" when you need help understanding something</li>
-        </ol>
-      </div>
+      )}
     </div>
   );
 }
