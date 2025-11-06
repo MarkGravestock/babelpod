@@ -1,0 +1,104 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.app-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 3rem;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.app-subtitle {
+  margin: 0;
+  font-size: 1.25rem;
+  opacity: 0.95;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.player-section {
+  margin: 2rem 0;
+  position: sticky;
+  top: 20px;
+  z-index: 10;
+}
+
+.app-footer {
+  background: #f8f9fa;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #666;
+  border-top: 1px solid #e0e0e0;
+}
+
+.app-footer p {
+  margin: 0.5rem 0;
+}
+
+.app-footer strong {
+  color: #667eea;
+}
+
+.footer-note {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 2rem 1rem 1.5rem;
+  }
+
+  .app-title {
+    font-size: 2rem;
+  }
+
+  .app-subtitle {
+    font-size: 1rem;
+  }
+
+  .app-main {
+    padding: 1.5rem 1rem;
+  }
+
+  .player-section {
+    position: relative;
+    top: 0;
+    margin: 1.5rem 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-title {
+    font-size: 1.75rem;
+  }
+
+  .app-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .app-main {
+    padding: 1rem 0.5rem;
+  }
+
+  .app-footer {
+    padding: 1.5rem 1rem;
+  }
+}
