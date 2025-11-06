@@ -1,4 +1,7 @@
-// Translation service using free APIs
+// Translation service with transcription strategy pattern
+
+import { transcribeWithBrowser, isBrowserSpeechRecognitionSupported, getFullLanguageCode } from './transcription/browserTranscription';
+import { transcribeWithWhisper } from './transcription/whisperTranscription';
 
 // Extract audio segment (last N seconds)
 export async function extractAudioSegment(audioElement, durationSeconds = 15) {
@@ -10,35 +13,6 @@ export async function extractAudioSegment(audioElement, durationSeconds = 15) {
     endTime: currentTime,
     duration: currentTime - startTime
   };
-}
-
-// Transcribe audio using OpenAI Whisper API
-// Note: Requires API key - user needs to provide their own
-export async function transcribeAudio(audioBlob, sourceLanguage = 'es', apiKey) {
-  if (!apiKey) {
-    throw new Error('OpenAI API key required. Please add your key in settings.');
-  }
-
-  const formData = new FormData();
-  formData.append('file', audioBlob, 'audio.mp3');
-  formData.append('model', 'whisper-1');
-  formData.append('language', sourceLanguage);
-
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: formData
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Transcription failed: ${error.error?.message || 'Unknown error'}`);
-  }
-
-  const data = await response.json();
-  return data.text;
 }
 
 // Translate text using MyMemory Translation API (free, no key required)
@@ -90,93 +64,87 @@ export function speakText(text, lang = 'en-US') {
   });
 }
 
-// Record audio segment from audio element
-export async function recordAudioSegment(audioElement, startTime, endTime) {
-  return new Promise((resolve, reject) => {
-    try {
-      // Create an audio context
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+/**
+ * Transcribe audio segment using the selected strategy
+ * @param {HTMLAudioElement} audioElement - The audio element
+ * @param {number} startTime - Start time in seconds
+ * @param {number} endTime - End time in seconds
+ * @param {string} sourceLang - Source language code
+ * @param {Object} settings - User settings with transcription method and API key
+ * @returns {Promise<string>} - The transcribed text
+ */
+async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLang, settings) {
+  const method = settings.transcriptionMethod || 'browser';
 
-      // Create media element source
-      const source = audioContext.createMediaElementSource(audioElement);
-
-      // Create destination for recording
-      const destination = audioContext.createMediaStreamDestination();
-      source.connect(destination);
-      source.connect(audioContext.destination);
-
-      // Create media recorder
-      const mediaRecorder = new MediaRecorder(destination.stream);
-      const chunks = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/mp3' });
-        resolve(blob);
-      };
-
-      // Set audio to start time and start recording
-      audioElement.currentTime = startTime;
-
-      audioElement.onplay = () => {
-        mediaRecorder.start();
-
-        // Stop recording after duration
-        setTimeout(() => {
-          mediaRecorder.stop();
-          audioElement.pause();
-        }, (endTime - startTime) * 1000);
-      };
-
-      audioElement.play();
-
-    } catch (error) {
-      reject(new Error(`Failed to record audio segment: ${error.message}`));
+  if (method === 'browser') {
+    // Use browser SpeechRecognition
+    if (!isBrowserSpeechRecognitionSupported()) {
+      throw new Error('Browser speech recognition not supported. Please use Chrome/Edge or switch to Whisper API in Settings.');
     }
-  });
+
+    const fullLangCode = getFullLanguageCode(sourceLang);
+    return await transcribeWithBrowser(audioElement, startTime, endTime, fullLangCode);
+
+  } else if (method === 'whisper') {
+    // Use OpenAI Whisper API
+    if (!settings.whisperApiKey) {
+      throw new Error('OpenAI API key required. Please add your key in Settings.');
+    }
+
+    return await transcribeWithWhisper(
+      audioElement,
+      startTime,
+      endTime,
+      sourceLang,
+      settings.whisperApiKey
+    );
+
+  } else {
+    throw new Error(`Unknown transcription method: ${method}`);
+  }
 }
 
-// Main translation pipeline
+/**
+ * Main translation pipeline - transcribe audio segment and translate it
+ * @param {HTMLAudioElement} audioElement - The audio element
+ * @param {number} durationSeconds - Duration to rewind (default 15s)
+ * @param {string} sourceLang - Source language code
+ * @param {string} targetLang - Target language code
+ * @param {Object} settings - User settings
+ * @returns {Promise<Object>} - Object with originalText, translatedText, and segment info
+ */
 export async function translateAudioSegment(
   audioElement,
   durationSeconds = 15,
   sourceLang = 'es',
   targetLang = 'en',
-  apiKey = null
+  settings = {}
 ) {
   // Step 1: Extract segment info
   const segment = await extractAudioSegment(audioElement, durationSeconds);
 
-  // For PoC without Whisper API, we'll skip transcription
-  // and show a placeholder message
-  if (!apiKey) {
-    // Use mock transcription for demo
-    const mockText = "Este es un texto de ejemplo para demostración.";
-    const translatedText = await translateText(mockText, sourceLang, targetLang);
+  // Step 2: Transcribe the audio segment
+  const originalText = await transcribeAudioSegment(
+    audioElement,
+    segment.startTime,
+    segment.endTime,
+    sourceLang,
+    settings
+  );
 
-    return {
-      originalText: mockText,
-      translatedText,
-      segment
-    };
-  }
+  console.log('Transcribed text:', originalText);
 
-  // Step 2: Record the audio segment
-  // Note: This is complex due to CORS issues with audio sources
-  // For PoC, we'll use a simpler approach
+  // Step 3: Translate the text
+  const translatedText = await translateText(originalText, sourceLang, targetLang);
 
-  // Step 3: Transcribe (with API key)
-  // const audioBlob = await recordAudioSegment(audioElement, segment.startTime, segment.endTime);
-  // const originalText = await transcribeAudio(audioBlob, sourceLang, apiKey);
+  console.log('Translated text:', translatedText);
 
-  // Step 4: Translate
-  // const translatedText = await translateText(originalText, sourceLang, targetLang);
-
-  // For now, return mock data
-  throw new Error('Full transcription requires OpenAI API key. Add your key in settings to enable this feature.');
+  return {
+    originalText,
+    translatedText,
+    segment
+  };
 }
+
+// Export for testing
+export { transcribeAudioSegment };
