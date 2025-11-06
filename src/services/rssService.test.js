@@ -5,7 +5,7 @@ describe('rssService', () => {
   beforeEach(() => {
     global.fetch = vi.fn();
     global.DOMParser = class {
-      parseFromString(xmlString) {
+      parseFromString(_xmlString) {
         // Mock XML parsing - return a simplified mock
         return {
           querySelector: (selector) => {

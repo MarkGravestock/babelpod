@@ -10,8 +10,8 @@ function App() {
   const [podcast, setPodcast] = useState(null);
   const [episodes, setEpisodes] = useState([]);
   const [selectedEpisode, setSelectedEpisode] = useState(null);
-  const [sourceLang, setSourceLang] = useState('es'); // Default: Spanish
-  const [targetLang, setTargetLang] = useState('en'); // Default: English
+  const [sourceLang] = useState('es'); // Default: Spanish
+  const [targetLang] = useState('en'); // Default: English
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const handlePodcastLoad = async (feedUrl) => {

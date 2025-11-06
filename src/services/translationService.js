@@ -149,39 +149,34 @@ export async function translateAudioSegment(
   targetLang = 'en',
   apiKey = null
 ) {
-  try {
-    // Step 1: Extract segment info
-    const segment = await extractAudioSegment(audioElement, durationSeconds);
+  // Step 1: Extract segment info
+  const segment = await extractAudioSegment(audioElement, durationSeconds);
 
-    // For PoC without Whisper API, we'll skip transcription
-    // and show a placeholder message
-    if (!apiKey) {
-      // Use mock transcription for demo
-      const mockText = "Este es un texto de ejemplo para demostración.";
-      const translatedText = await translateText(mockText, sourceLang, targetLang);
+  // For PoC without Whisper API, we'll skip transcription
+  // and show a placeholder message
+  if (!apiKey) {
+    // Use mock transcription for demo
+    const mockText = "Este es un texto de ejemplo para demostración.";
+    const translatedText = await translateText(mockText, sourceLang, targetLang);
 
-      return {
-        originalText: mockText,
-        translatedText,
-        segment
-      };
-    }
-
-    // Step 2: Record the audio segment
-    // Note: This is complex due to CORS issues with audio sources
-    // For PoC, we'll use a simpler approach
-
-    // Step 3: Transcribe (with API key)
-    // const audioBlob = await recordAudioSegment(audioElement, segment.startTime, segment.endTime);
-    // const originalText = await transcribeAudio(audioBlob, sourceLang, apiKey);
-
-    // Step 4: Translate
-    // const translatedText = await translateText(originalText, sourceLang, targetLang);
-
-    // For now, return mock data
-    throw new Error('Full transcription requires OpenAI API key. Add your key in settings to enable this feature.');
-
-  } catch (error) {
-    throw error;
+    return {
+      originalText: mockText,
+      translatedText,
+      segment
+    };
   }
+
+  // Step 2: Record the audio segment
+  // Note: This is complex due to CORS issues with audio sources
+  // For PoC, we'll use a simpler approach
+
+  // Step 3: Transcribe (with API key)
+  // const audioBlob = await recordAudioSegment(audioElement, segment.startTime, segment.endTime);
+  // const originalText = await transcribeAudio(audioBlob, sourceLang, apiKey);
+
+  // Step 4: Translate
+  // const translatedText = await translateText(originalText, sourceLang, targetLang);
+
+  // For now, return mock data
+  throw new Error('Full transcription requires OpenAI API key. Add your key in settings to enable this feature.');
 }
