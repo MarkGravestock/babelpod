@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { translateAudioSegment, speakText } from '../services/translationService';
+import { getCorsProxiedUrl, CORS_PROXIES } from '../services/rssService';
 import './AudioPlayer.css';
 
 export default function AudioPlayer({ episode, settings = {} }) {
@@ -10,6 +11,44 @@ export default function AudioPlayer({ episode, settings = {} }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [translationStatus, setTranslationStatus] = useState('');
   const [rewindSeconds] = useState(15);
+  const [proxyIndex, setProxyIndex] = useState(0);
+  const [audioSrc, setAudioSrc] = useState('');
+
+  // Set audio source when episode changes
+  useEffect(() => {
+    if (episode?.audioUrl) {
+      setProxyIndex(0); // Reset proxy index for new episode
+      const proxiedUrl = getCorsProxiedUrl(episode.audioUrl, 0);
+      setAudioSrc(proxiedUrl);
+      console.log('Loading audio from:', proxiedUrl);
+    }
+  }, [episode?.audioUrl]);
+
+  // Handle audio error and try next CORS proxy
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleError = (e) => {
+      console.error('Audio loading error:', e);
+
+      // Try next CORS proxy
+      const nextProxyIndex = proxyIndex + 1;
+      if (nextProxyIndex < CORS_PROXIES.length && episode?.audioUrl) {
+        console.log(`Trying CORS proxy ${nextProxyIndex}...`);
+        setProxyIndex(nextProxyIndex);
+        const nextProxiedUrl = getCorsProxiedUrl(episode.audioUrl, nextProxyIndex);
+        setAudioSrc(nextProxiedUrl);
+      } else {
+        console.error('All CORS proxies failed for audio');
+        setTranslationStatus('Error: Unable to load audio. Try a different episode.');
+        setTimeout(() => setTranslationStatus(''), 5000);
+      }
+    };
+
+    audio.addEventListener('error', handleError);
+    return () => audio.removeEventListener('error', handleError);
+  }, [proxyIndex, episode?.audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -125,7 +164,7 @@ export default function AudioPlayer({ episode, settings = {} }) {
 
   return (
     <div className="audio-player">
-      <audio ref={audioRef} src={episode.audioUrl} preload="metadata" />
+      <audio ref={audioRef} src={audioSrc} preload="metadata" />
 
       <div className="episode-info">
         {episode.image && (
