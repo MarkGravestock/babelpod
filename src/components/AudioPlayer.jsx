@@ -164,7 +164,7 @@ export default function AudioPlayer({ episode, settings = {} }) {
 
   return (
     <div className="audio-player">
-      <audio ref={audioRef} src={audioSrc} preload="metadata" />
+      <audio ref={audioRef} src={audioSrc} preload="metadata" crossOrigin="anonymous" />
 
       <div className="episode-info">
         {episode.image && (
