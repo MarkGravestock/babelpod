@@ -17,6 +17,10 @@ services:
       # faster_whisper is 4x faster with same accuracy, but requires more setup
       - ASR_ENGINE=faster_whisper
 
+      # CORS Settings - Allow browser access from any origin
+      # Change * to your specific domain for production (e.g., https://yourdomain.com)
+      - WHISPER_ALLOWED_ORIGINS=*
+
       # Optional: Specify model path to persist models between restarts
       # - ASR_MODEL_PATH=/data/models
 

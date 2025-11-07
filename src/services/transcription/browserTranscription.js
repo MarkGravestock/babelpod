@@ -18,6 +18,10 @@ export async function transcribeWithBrowser(audioElement, startTime, endTime, la
   }
 
   return new Promise((resolve, reject) => {
+    let cleanupCalled = false;
+    let audioContext = null;
+    let source = null;
+
     try {
       // Create SpeechRecognition instance
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -33,8 +37,8 @@ export async function transcribeWithBrowser(audioElement, startTime, endTime, la
       let isRecognitionActive = false;
 
       // Create audio context and connect to audio element
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaElementSource(audioElement);
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaElementSource(audioElement);
       const destination = audioContext.createMediaStreamDestination();
 
       // Connect audio element to both speakers and recognition stream
@@ -52,8 +56,19 @@ export async function transcribeWithBrowser(audioElement, startTime, endTime, la
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        cleanup();
-        reject(new Error(`Speech recognition failed: ${event.error}`));
+        // Only treat certain errors as failures
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          cleanup();
+          reject(new Error(`Speech recognition failed: ${event.error}`));
+        } else {
+          // For no-speech, just stop and return what we have
+          cleanup();
+          if (transcript.trim()) {
+            resolve(transcript.trim());
+          } else {
+            reject(new Error('No speech detected in the audio segment'));
+          }
+        }
       };
 
       recognition.onend = () => {
@@ -66,10 +81,18 @@ export async function transcribeWithBrowser(audioElement, startTime, endTime, la
       };
 
       const cleanup = () => {
+        // Prevent double cleanup
+        if (cleanupCalled) return;
+        cleanupCalled = true;
+
         isRecognitionActive = false;
         try {
           audioElement.pause();
-          audioContext.close();
+
+          // Properly close AudioContext
+          if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close().catch(e => console.error('Error closing AudioContext:', e));
+          }
         } catch (e) {
           console.error('Cleanup error:', e);
         }
