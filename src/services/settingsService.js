@@ -4,6 +4,7 @@ const STORAGE_KEY = 'babelpod_settings';
 const DEFAULT_SETTINGS = {
   transcriptionMethod: 'browser',
   whisperApiKey: '',
+  selfHostedWhisperUrl: 'http://localhost:9000',
   sourceLang: 'es',
   targetLang: 'en'
 };

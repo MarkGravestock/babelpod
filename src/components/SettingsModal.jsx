@@ -92,6 +92,34 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
                 </div>
               </div>
             </label>
+
+            <label className={`radio-option ${settings.transcriptionMethod === 'selfhosted' ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="transcriptionMethod"
+                value="selfhosted"
+                checked={settings.transcriptionMethod === 'selfhosted'}
+                onChange={(e) => handleChange('transcriptionMethod', e.target.value)}
+              />
+              <div className="radio-content">
+                <strong>Self-Hosted Whisper API</strong>
+                <span className="badge free">Free</span>
+                <p>Run your own Whisper server locally or on your infrastructure. Best of both worlds.</p>
+                <div className="pros-cons">
+                  <div className="pros">
+                    ✅ Completely free<br/>
+                    ✅ Very accurate<br/>
+                    ✅ Private & secure<br/>
+                    ✅ Works in all browsers
+                  </div>
+                  <div className="cons">
+                    ⚙️ Requires setup<br/>
+                    💻 Needs server/Docker<br/>
+                    🐌 Speed depends on hardware
+                  </div>
+                </div>
+              </div>
+            </label>
           </div>
 
           {settings.transcriptionMethod === 'whisper' && (
@@ -116,6 +144,31 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
                 className="api-key-input"
               />
               <small>Your API key is stored locally in your browser and never sent anywhere except OpenAI.</small>
+            </div>
+          )}
+
+          {settings.transcriptionMethod === 'selfhosted' && (
+            <div className="api-key-section">
+              <label htmlFor="selfHostedUrl">
+                <strong>Whisper API URL</strong>
+                <a
+                  href="https://github.com/ahmetoner/whisper-asr-webservice"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link"
+                >
+                  Setup Guide →
+                </a>
+              </label>
+              <input
+                id="selfHostedUrl"
+                type="text"
+                value={settings.selfHostedWhisperUrl}
+                onChange={(e) => handleChange('selfHostedWhisperUrl', e.target.value)}
+                placeholder="http://localhost:9000"
+                className="api-key-input"
+              />
+              <small>URL of your self-hosted Whisper API. See docker-compose.yml in the project root for a quick setup.</small>
             </div>
           )}
         </div>
