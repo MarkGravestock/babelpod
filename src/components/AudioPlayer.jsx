@@ -13,6 +13,9 @@ export default function AudioPlayer({ episode, settings = {} }) {
   const [rewindSeconds] = useState(15);
   const [proxyIndex, setProxyIndex] = useState(0);
   const [audioSrc, setAudioSrc] = useState('');
+  const [transcribedText, setTranscribedText] = useState('');
+  const [translatedText, setTranslatedText] = useState('');
+  const [showTranslationTexts, setShowTranslationTexts] = useState(false);
 
   // Set audio source when episode changes
   useEffect(() => {
@@ -101,6 +104,11 @@ export default function AudioPlayer({ episode, settings = {} }) {
       audio.pause();
       setIsPlaying(false);
 
+      // Clear previous texts
+      setTranscribedText('');
+      setTranslatedText('');
+      setShowTranslationTexts(false);
+
       setIsTranslating(true);
       setTranslationStatus('Preparing to translate last 15 seconds...');
 
@@ -118,6 +126,10 @@ export default function AudioPlayer({ episode, settings = {} }) {
         targetLang,
         settings
       );
+
+      // Show transcribed text
+      setTranscribedText(result.originalText);
+      setShowTranslationTexts(true);
 
       // After browser transcription, reload audio element to reset it
       // This is necessary because createMediaElementSource permanently connects the audio
@@ -142,6 +154,9 @@ export default function AudioPlayer({ episode, settings = {} }) {
 
       setTranslationStatus('Speaking translation...');
 
+      // Show translated text
+      setTranslatedText(result.translatedText);
+
       // Speak the translation using browser TTS
       const targetLangCode = targetLang === 'en' ? 'en-US' : targetLang === 'es' ? 'es-ES' : targetLang;
       await speakText(result.translatedText, targetLangCode);
@@ -154,8 +169,16 @@ export default function AudioPlayer({ episode, settings = {} }) {
         setIsPlaying(true);
       }
 
-      // Clear status after a delay
-      setTimeout(() => setTranslationStatus(''), 3000);
+      // Clear status and texts after a delay
+      setTimeout(() => {
+        setTranslationStatus('');
+        setShowTranslationTexts(false);
+        // Clear texts after fade out
+        setTimeout(() => {
+          setTranscribedText('');
+          setTranslatedText('');
+        }, 300); // Match CSS transition duration
+      }, 3000);
 
     } catch (error) {
       setTranslationStatus(`Error: ${error.message}`);
@@ -244,6 +267,22 @@ export default function AudioPlayer({ episode, settings = {} }) {
           {translationStatus}
         </div>
       )}
+
+      {/* Translation texts display */}
+      <div className={`translation-texts ${showTranslationTexts ? 'show' : ''}`}>
+        {transcribedText && (
+          <div className="text-block original">
+            <div className="text-label">Original</div>
+            <div className="text-content">{transcribedText}</div>
+          </div>
+        )}
+        {translatedText && (
+          <div className="text-block translated">
+            <div className="text-label">Translation</div>
+            <div className="text-content">{translatedText}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
