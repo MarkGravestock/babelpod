@@ -95,13 +95,12 @@ export default function AudioPlayer({ episode, settings = {} }) {
   const rewindAndTranslate = async () => {
     const audio = audioRef.current;
     const wasPlaying = isPlaying;
+    const currentSrc = audioSrc;
 
     try {
-      // Pause the audio
-      if (wasPlaying) {
-        audio.pause();
-        setIsPlaying(false);
-      }
+      // Force pause the audio immediately
+      audio.pause();
+      setIsPlaying(false);
 
       setIsTranslating(true);
       setTranslationStatus('Preparing to translate last 15 seconds...');
@@ -121,10 +120,28 @@ export default function AudioPlayer({ episode, settings = {} }) {
         settings
       );
 
-      setTranslationStatus('Speaking translation...');
+      // After browser transcription, reload audio element to reset it
+      // This is necessary because createMediaElementSource permanently connects the audio
+      if (settings.transcriptionMethod === 'browser') {
+        console.log('Reloading audio element after browser transcription...');
+        const savedTime = result.segment.startTime;
 
-      // Rewind the audio to the start of the segment
-      audio.currentTime = result.segment.startTime;
+        // Force reload the audio element
+        audio.load();
+
+        // Wait for it to be ready
+        await new Promise((resolve) => {
+          audio.onloadedmetadata = () => {
+            audio.currentTime = savedTime;
+            resolve();
+          };
+        });
+      } else {
+        // For Whisper methods, just set the time
+        audio.currentTime = result.segment.startTime;
+      }
+
+      setTranslationStatus('Speaking translation...');
 
       // Speak the translation using browser TTS
       const targetLangCode = targetLang === 'en' ? 'en-US' : targetLang === 'es' ? 'es-ES' : targetLang;
@@ -134,7 +151,7 @@ export default function AudioPlayer({ episode, settings = {} }) {
 
       // Resume playback from the start of the segment
       if (wasPlaying) {
-        audio.play();
+        await audio.play();
         setIsPlaying(true);
       }
 
