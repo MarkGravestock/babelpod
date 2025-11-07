@@ -98,6 +98,7 @@ export default function AudioPlayer({ episode, settings = {} }) {
   const rewindAndTranslate = async () => {
     const audio = audioRef.current;
     const wasPlaying = isPlaying;
+    const originalPosition = audio.currentTime; // Save original position
 
     try {
       // Force pause the audio immediately
@@ -135,21 +136,20 @@ export default function AudioPlayer({ episode, settings = {} }) {
       // This is necessary because createMediaElementSource permanently connects the audio
       if (settings.transcriptionMethod === 'browser') {
         console.log('Reloading audio element after browser transcription...');
-        const savedTime = result.segment.startTime;
 
         // Force reload the audio element
         audio.load();
 
-        // Wait for it to be ready
+        // Wait for it to be ready and restore original position
         await new Promise((resolve) => {
           audio.onloadedmetadata = () => {
-            audio.currentTime = savedTime;
+            audio.currentTime = originalPosition;
             resolve();
           };
         });
       } else {
-        // For Whisper methods, just set the time
-        audio.currentTime = result.segment.startTime;
+        // For Whisper methods, restore to original position
+        audio.currentTime = originalPosition;
       }
 
       setTranslationStatus('Speaking translation...');
@@ -163,7 +163,7 @@ export default function AudioPlayer({ episode, settings = {} }) {
 
       setTranslationStatus('Translation complete!');
 
-      // Resume playback from the start of the segment
+      // Resume playback from original position
       if (wasPlaying) {
         await audio.play();
         setIsPlaying(true);
@@ -181,6 +181,9 @@ export default function AudioPlayer({ episode, settings = {} }) {
       }, 3000);
 
     } catch (error) {
+      // Restore original position on error
+      audio.currentTime = originalPosition;
+
       setTranslationStatus(`Error: ${error.message}`);
       console.error('Translation error:', error);
 
