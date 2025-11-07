@@ -4,7 +4,7 @@ import EpisodeList from './components/EpisodeList';
 import AudioPlayer from './components/AudioPlayer';
 import HelpModal from './components/HelpModal';
 import SettingsModal from './components/SettingsModal';
-import { getSettings } from './services/settingsService';
+import { getSettings, saveSettings } from './services/settingsService';
 import { parsePodcastFeed } from './services/rssService';
 import './App.css';
 
@@ -21,6 +21,18 @@ function App() {
     setPodcast(podcastData);
     setEpisodes(podcastData.episodes);
     setSelectedEpisode(null); // Reset selection when loading new podcast
+
+    // Auto-set source language from RSS feed if available
+    if (podcastData.language) {
+      console.log('Detected podcast language:', podcastData.language);
+      const updatedSettings = {
+        ...settings,
+        sourceLang: podcastData.language
+      };
+      setSettings(updatedSettings);
+      saveSettings(updatedSettings);
+    }
+
     return podcastData; // Return for the loader to save
   };
 

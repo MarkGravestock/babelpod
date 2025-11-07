@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getSettings, saveSettings } from '../services/settingsService';
 import './SettingsModal.css';
 
-export default function SettingsModal({ isOpen, onClose }) {
+export default function SettingsModal({ isOpen, onClose, onSave }) {
   const [settings, setSettings] = useState(getSettings());
 
   // Load settings from localStorage on mount
@@ -12,7 +12,11 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const handleSave = () => {
     saveSettings(settings);
-    onClose(settings);
+    if (onSave) {
+      onSave(settings);
+    } else {
+      onClose();
+    }
   };
 
   const handleChange = (field, value) => {

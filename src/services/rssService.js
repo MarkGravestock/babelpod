@@ -48,6 +48,7 @@ export async function parsePodcastFeed(feedUrl) {
       const title = getElementText(channel, 'title');
       const description = getElementText(channel, 'description');
       const imageUrl = getImageUrl(channel);
+      const language = getLanguageCode(channel);
 
       // Extract episodes
       const items = Array.from(xmlDoc.querySelectorAll('item'));
@@ -73,6 +74,7 @@ export async function parsePodcastFeed(feedUrl) {
         title: title || 'Unknown Podcast',
         description: description || '',
         image: imageUrl,
+        language: language,
         episodes
       };
 
@@ -120,4 +122,37 @@ function getImageUrl(parent) {
   }
 
   return null;
+}
+
+// Helper function to extract and normalize language code from RSS feed
+function getLanguageCode(channel) {
+  // Try to get language from <language> tag
+  let langCode = getElementText(channel, 'language');
+
+  if (!langCode) {
+    // Try iTunes language tag
+    langCode = getElementText(channel, 'itunes\\:language');
+  }
+
+  if (!langCode) {
+    return null;
+  }
+
+  // Normalize language code (e.g., "en-US" -> "en", "es-MX" -> "es")
+  langCode = langCode.toLowerCase().split('-')[0];
+
+  return langCode;
+}
+
+// Export CORS proxies for reuse in other components
+export { CORS_PROXIES };
+
+// Function to get CORS-proxied URL
+export function getCorsProxiedUrl(url, proxyIndex = 0) {
+  if (proxyIndex >= CORS_PROXIES.length) {
+    return null; // No more proxies to try
+  }
+
+  const proxy = CORS_PROXIES[proxyIndex];
+  return proxy ? `${proxy}${encodeURIComponent(url)}` : url;
 }
