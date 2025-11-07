@@ -164,6 +164,56 @@
   backdrop-filter: blur(10px);
 }
 
+/* Translation texts display */
+.translation-texts {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.translation-texts.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.text-block {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.text-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+  margin-bottom: 0.5rem;
+}
+
+.text-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: white;
+}
+
+.text-block.original {
+  border-left: 3px solid rgba(255, 255, 255, 0.5);
+}
+
+.text-block.translated {
+  border-left: 3px solid #f5576c;
+  background: rgba(245, 87, 108, 0.15);
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .audio-player {
@@ -200,6 +250,14 @@
     padding: 0.875rem 1.5rem;
     font-size: 1rem;
   }
+
+  .text-block {
+    padding: 0.875rem;
+  }
+
+  .text-content {
+    font-size: 0.95rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -226,5 +284,17 @@
   .translate-btn {
     padding: 0.75rem 1.25rem;
     font-size: 0.95rem;
+  }
+
+  .text-block {
+    padding: 0.75rem;
+  }
+
+  .text-content {
+    font-size: 0.9rem;
+  }
+
+  .text-label {
+    font-size: 0.7rem;
   }
 }
