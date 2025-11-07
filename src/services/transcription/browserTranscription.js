@@ -56,18 +56,15 @@ export async function transcribeWithBrowser(audioElement, startTime, endTime, la
 
       recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        // Only treat certain errors as failures
-        if (event.error !== 'no-speech' && event.error !== 'aborted') {
-          cleanup();
-          reject(new Error(`Speech recognition failed: ${event.error}`));
+        cleanup();
+
+        // Provide helpful error messages
+        if (event.error === 'no-speech') {
+          reject(new Error('Browser speech recognition couldn\'t detect speech. This method works best with microphone input and may not work reliably with podcast audio. For better results, use Self-Hosted Whisper (free, accurate) or OpenAI Whisper API in Settings.'));
+        } else if (event.error === 'aborted') {
+          reject(new Error('Speech recognition was aborted'));
         } else {
-          // For no-speech, just stop and return what we have
-          cleanup();
-          if (transcript.trim()) {
-            resolve(transcript.trim());
-          } else {
-            reject(new Error('No speech detected in the audio segment'));
-          }
+          reject(new Error(`Speech recognition failed: ${event.error}`));
         }
       };
 
