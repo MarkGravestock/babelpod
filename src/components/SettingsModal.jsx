@@ -176,10 +176,10 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
                 type="text"
                 value={settings.selfHostedWhisperUrl}
                 onChange={(e) => handleChange('selfHostedWhisperUrl', e.target.value)}
-                placeholder="http://localhost:9000"
+                placeholder="http://localhost:9001"
                 className="api-key-input"
               />
-              <small>URL of your self-hosted Whisper API. See docker-compose.yml in the project root for a quick setup.</small>
+              <small>URL of your self-hosted Whisper API with CORS proxy. See docker-compose.yml in the project root for setup.</small>
             </div>
           )}
         </div>

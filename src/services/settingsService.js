@@ -14,7 +14,7 @@ function getBrowserLanguage() {
 const DEFAULT_SETTINGS = {
   transcriptionMethod: 'browser',
   whisperApiKey: '',
-  selfHostedWhisperUrl: 'http://localhost:9000',
+  selfHostedWhisperUrl: 'http://localhost:9001',
   sourceLang: 'auto', // Auto-detect from RSS feed or let Whisper detect
   targetLang: getBrowserLanguage() // User's browser language
 };
