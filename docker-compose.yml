@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Self-hosted Whisper API service
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: babelpod-whisper
+    ports:
+      - "9000:9000"
+    environment:
+      # Whisper model to use: tiny, base, small, medium, large, large-v2, large-v3
+      # Larger models are more accurate but slower and require more RAM
+      # Recommended: base (fast, decent accuracy) or small (balanced)
+      - ASR_MODEL=base
+
+      # ASR engine: openai_whisper or faster_whisper
+      # faster_whisper is 4x faster with same accuracy, but requires more setup
+      - ASR_ENGINE=faster_whisper
+
+      # Optional: Specify model path to persist models between restarts
+      # - ASR_MODEL_PATH=/data/models
+
+    volumes:
+      # Cache models to avoid re-downloading on container restart
+      - whisper-models:/root/.cache/whisper
+      # Optional: If using ASR_MODEL_PATH
+      # - ./whisper-models:/data/models
+
+    # Uncomment for GPU support (much faster transcription)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  whisper-models:
+    driver: local
+
+# Usage Instructions:
+#
+# 1. Start the Whisper service:
+#    docker-compose up -d
+#
+# 2. Wait for the model to download (first time only):
+#    docker-compose logs -f whisper
+#
+# 3. Once running, the API will be available at:
+#    http://localhost:9000
+#
+# 4. View the API documentation at:
+#    http://localhost:9000/docs
+#
+# 5. Configure BabelPod:
+#    - Open Settings in BabelPod
+#    - Select "Self-Hosted Whisper API"
+#    - Set URL to: http://localhost:9000
+#    - Save and test!
+#
+# Performance Tips:
+# - tiny model: fastest, least accurate (~1GB RAM)
+# - base model: good balance (~1GB RAM) ⭐ Recommended
+# - small model: better accuracy (~2GB RAM)
+# - medium model: very good accuracy (~5GB RAM)
+# - large models: best accuracy (~10GB RAM)
+#
+# GPU Support:
+# - Uncomment the "deploy" section above
+# - Install nvidia-docker: https://github.com/NVIDIA/nvidia-docker
+# - Use the GPU image: onerahmet/openai-whisper-asr-webservice:latest-gpu
+#
+# Stop the service:
+#    docker-compose down
+#
+# Remove cached models:
+#    docker-compose down -v

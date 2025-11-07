@@ -92,6 +92,34 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
                 </div>
               </div>
             </label>
+
+            <label className={`radio-option ${settings.transcriptionMethod === 'selfhosted' ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="transcriptionMethod"
+                value="selfhosted"
+                checked={settings.transcriptionMethod === 'selfhosted'}
+                onChange={(e) => handleChange('transcriptionMethod', e.target.value)}
+              />
+              <div className="radio-content">
+                <strong>Self-Hosted Whisper API</strong>
+                <span className="badge free">Free</span>
+                <p>Run your own Whisper server locally or on your infrastructure. Best of both worlds.</p>
+                <div className="pros-cons">
+                  <div className="pros">
+                    ✅ Completely free<br/>
+                    ✅ Very accurate<br/>
+                    ✅ Private & secure<br/>
+                    ✅ Works in all browsers
+                  </div>
+                  <div className="cons">
+                    ⚙️ Requires setup<br/>
+                    💻 Needs server/Docker<br/>
+                    🐌 Speed depends on hardware
+                  </div>
+                </div>
+              </div>
+            </label>
           </div>
 
           {settings.transcriptionMethod === 'whisper' && (
@@ -118,19 +146,50 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
               <small>Your API key is stored locally in your browser and never sent anywhere except OpenAI.</small>
             </div>
           )}
+
+          {settings.transcriptionMethod === 'selfhosted' && (
+            <div className="api-key-section">
+              <label htmlFor="selfHostedUrl">
+                <strong>Whisper API URL</strong>
+                <a
+                  href="https://github.com/ahmetoner/whisper-asr-webservice"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link"
+                >
+                  Setup Guide →
+                </a>
+              </label>
+              <input
+                id="selfHostedUrl"
+                type="text"
+                value={settings.selfHostedWhisperUrl}
+                onChange={(e) => handleChange('selfHostedWhisperUrl', e.target.value)}
+                placeholder="http://localhost:9000"
+                className="api-key-input"
+              />
+              <small>URL of your self-hosted Whisper API. See docker-compose.yml in the project root for a quick setup.</small>
+            </div>
+          )}
         </div>
 
         <div className="settings-section">
           <h3>🌍 Languages</h3>
 
           <div className="form-group">
-            <label htmlFor="sourceLang">Podcast Language (Source)</label>
+            <label htmlFor="sourceLang">
+              Podcast Language (Source)
+              <small style={{display: 'block', fontWeight: 'normal', color: '#888', marginTop: '4px'}}>
+                Auto-detect from RSS feed or Whisper
+              </small>
+            </label>
             <select
               id="sourceLang"
               value={settings.sourceLang}
               onChange={(e) => handleChange('sourceLang', e.target.value)}
               className="language-select"
             >
+              <option value="auto">🔍 Auto-detect (recommended)</option>
               <option value="es">Spanish</option>
               <option value="fr">French</option>
               <option value="de">German</option>
@@ -143,7 +202,12 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="targetLang">Translation Language (Target)</label>
+            <label htmlFor="targetLang">
+              Your Language (Target)
+              <small style={{display: 'block', fontWeight: 'normal', color: '#888', marginTop: '4px'}}>
+                Detected from your browser settings
+              </small>
+            </label>
             <select
               id="targetLang"
               value={settings.targetLang}

@@ -4,13 +4,18 @@ A progressive web application for language learners that allows you to play podc
 
 ## ✨ Features
 
-- **Podcast Playback**: Load and play podcasts from RSS feeds
+- **Podcast Playback**: Load and play podcasts from RSS feeds with CORS proxy support
 - **Standard Controls**: Play/pause, rewind/skip (15s, 30s)
 - **Instant Translation**: Special "Rewind 15s & Translate" button that:
   - Rewinds 15 seconds
-  - Transcribes the audio segment
+  - Transcribes the audio segment using your chosen method
   - Translates it to your target language
   - Plays the translation out loud using text-to-speech
+- **Multiple Transcription Options**:
+  - Browser Speech Recognition (free, no setup)
+  - OpenAI Whisper API (paid, very accurate)
+  - Self-hosted Whisper API (free, private, accurate)
+- **Auto Language Detection**: Automatically detects podcast language from RSS feed
 - **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
 - **Progressive**: Built with modern web standards for a native app-like experience
 
@@ -68,6 +73,69 @@ npm test
 npm run test:ui
 ```
 
+## 🎙️ Self-Hosted Whisper API (Recommended)
+
+For the best experience - accurate transcription without paying for API calls - you can run Whisper locally using Docker.
+
+### Quick Setup
+
+1. Make sure Docker is installed on your machine
+
+2. Start the Whisper service:
+```bash
+docker-compose up -d
+```
+
+3. Wait for the model to download (first time only, ~100MB-1GB depending on model):
+```bash
+docker-compose logs -f whisper
+```
+
+4. Once you see "Application startup complete", the API is ready at `http://localhost:9000`
+
+5. In BabelPod:
+   - Click Settings ⚙️
+   - Select "Self-Hosted Whisper API"
+   - The URL should be pre-filled: `http://localhost:9000`
+   - Save and start translating!
+
+### Model Selection
+
+Edit `docker-compose.yml` to change the `ASR_MODEL` setting:
+- `tiny`: Fastest, least accurate (~1GB RAM)
+- `base`: Good balance (~1GB RAM) ⭐ **Recommended**
+- `small`: Better accuracy (~2GB RAM)
+- `medium`: Very good accuracy (~5GB RAM)
+- `large-v3`: Best accuracy (~10GB RAM, GPU recommended)
+
+### GPU Support
+
+For much faster transcription with GPU:
+1. Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
+2. In `docker-compose.yml`, change the image to:
+   ```yaml
+   image: onerahmet/openai-whisper-asr-webservice:latest-gpu
+   ```
+3. Uncomment the `deploy` section
+4. Restart: `docker-compose down && docker-compose up -d`
+
+### API Documentation
+
+Once running, view the API docs at: `http://localhost:9000/docs`
+
+### Stopping the Service
+
+```bash
+# Stop without removing data
+docker-compose stop
+
+# Stop and remove (models are preserved in volume)
+docker-compose down
+
+# Remove everything including cached models
+docker-compose down -v
+```
+
 ## 🚀 Deployment
 
 This project is configured for automatic deployment to GitHub Pages.
@@ -121,15 +189,14 @@ Visit the live app at: `https://markgravestock.github.io/babelpod/`
 - **Vite**: Build tool and dev server
 - **CSS3**: Responsive styling with gradients and animations
 
-### Services
-- **RSS Parser**: For loading podcast feeds
+### Services & APIs
+- **RSS Parser**: For loading podcast feeds with CORS proxy fallback
 - **MyMemory Translation API**: Free translation service (no API key required)
-- **Web Speech API**: Browser-based text-to-speech (completely free)
-
-### Future Enhancements (Not Yet Implemented)
-- **OpenAI Whisper API**: For accurate speech-to-text transcription
-  - Currently using mock transcription for PoC
-  - To enable: Add your OpenAI API key in settings
+- **Web Speech API**: Browser-based text-to-speech and speech recognition
+- **Transcription Options**:
+  - Browser Speech Recognition API (free, built-in)
+  - OpenAI Whisper API (paid, requires API key)
+  - Self-hosted Whisper API (free, run locally with Docker)
 
 ## 🎯 Use Cases
 
@@ -139,12 +206,14 @@ Perfect for:
 - Podcast enthusiasts who want to understand challenging sections
 - Students practicing listening comprehension
 
-## 🌐 CORS Considerations
+## 🌐 CORS Support
 
-Some podcast feeds may have CORS restrictions. If you encounter CORS errors:
-1. Use a CORS proxy (for development only)
-2. Consider setting up a backend server to fetch RSS feeds
-3. Test with podcasts that have proper CORS headers
+BabelPod automatically handles CORS restrictions for both RSS feeds and audio playback:
+- **RSS Feeds**: Tries multiple CORS proxies automatically
+- **Audio Playback**: Proxies audio through CORS-enabled servers
+- **Web Audio API**: Proper `crossOrigin` attribute for transcription features
+
+Most podcasts will work out of the box!
 
 ## 📱 Progressive Web App Features
 
@@ -178,16 +247,24 @@ MIT License - feel free to use this for learning or commercial projects!
 
 ## 🐛 Known Limitations
 
-1. **Transcription**: Currently using mock transcription for demonstration
-   - Real transcription requires OpenAI Whisper API (paid)
-   - Alternative: Use browser's SpeechRecognition API (limited browser support)
+1. **Browser Speech Recognition**:
+   - Only works in Chrome and Edge (uses Google's speech recognition)
+   - Requires internet connection
+   - May be less accurate than Whisper
 
-2. **CORS**: Some podcast feeds may not work due to CORS restrictions
+2. **Self-Hosted Whisper**:
+   - Requires Docker and sufficient RAM (1-10GB depending on model)
+   - CPU transcription is slower (15-30 seconds for 15s audio)
+   - GPU recommended for real-time transcription
 
 3. **Browser Support**:
    - Text-to-speech requires modern browser with Web Speech API
    - Best experience in Chrome, Edge, Safari
    - Firefox has limited TTS voice support
+
+4. **CORS Proxies**:
+   - Some CORS proxies may be slow or rate-limited
+   - Self-hosted option recommended for production use
 
 ## 💡 Tips
 

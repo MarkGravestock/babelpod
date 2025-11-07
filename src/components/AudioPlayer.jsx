@@ -106,7 +106,8 @@ export default function AudioPlayer({ episode, settings = {} }) {
       setIsTranslating(true);
       setTranslationStatus('Preparing to translate last 15 seconds...');
 
-      const sourceLang = settings.sourceLang || 'es';
+      // Source language: use from settings (may be 'auto' or RSS-detected)
+      const sourceLang = settings.sourceLang || 'auto';
       const targetLang = settings.targetLang || 'en';
 
       setTranslationStatus('Transcribing audio...');

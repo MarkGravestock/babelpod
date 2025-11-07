@@ -1,4 +1,4 @@
-// OpenAI Whisper API transcription
+// Self-hosted Whisper API transcription
 
 /**
  * Record audio segment from audio element to a blob
@@ -58,59 +58,65 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
 }
 
 /**
- * Transcribe audio using OpenAI Whisper API
+ * Transcribe audio using self-hosted Whisper API
  * @param {HTMLAudioElement} audioElement - The audio element to transcribe from
  * @param {number} startTime - Start time in seconds
  * @param {number} endTime - End time in seconds
  * @param {string} language - Language code (e.g., 'es', 'fr')
- * @param {string} apiKey - OpenAI API key
+ * @param {string} apiUrl - Self-hosted Whisper API URL
  * @returns {Promise<string>} - The transcribed text
  */
-export async function transcribeWithWhisper(audioElement, startTime, endTime, language, apiKey) {
-  if (!apiKey) {
-    throw new Error('OpenAI API key is required. Please add your API key in Settings.');
+export async function transcribeWithSelfHostedWhisper(audioElement, startTime, endTime, language, apiUrl) {
+  if (!apiUrl) {
+    throw new Error('Self-hosted Whisper API URL is required. Please configure it in Settings.');
   }
+
+  // Normalize API URL (remove trailing slash)
+  const baseUrl = apiUrl.replace(/\/$/, '');
 
   try {
     // Step 1: Record the audio segment
     console.log(`Recording audio segment from ${startTime}s to ${endTime}s`);
     const audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
 
-    // Step 2: Send to Whisper API
+    // Step 2: Send to self-hosted Whisper API
+    // whisper-asr-webservice uses a different endpoint format
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
-    formData.append('model', 'whisper-1');
+    formData.append('audio_file', audioBlob, 'audio.webm');
     // Only specify language if provided, otherwise Whisper will auto-detect
+    // whisper-asr-webservice auto-detects when language is not provided or empty
     if (language && language !== 'auto') {
       formData.append('language', language);
     }
-    formData.append('response_format', 'text');
+    formData.append('task', 'transcribe');
+    formData.append('output', 'txt');
 
-    console.log('Sending to Whisper API...');
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    console.log(`Sending to self-hosted Whisper API at ${baseUrl}/asr...`);
+    const response = await fetch(`${baseUrl}/asr`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`
-      },
       body: formData
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-      throw new Error(`Whisper API error: ${errorMessage}`);
+      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(`Self-hosted Whisper API error: ${errorMessage}`);
     }
 
-    const transcription = await response.text();
-    console.log('Whisper transcription:', transcription);
+    const result = await response.text();
+    console.log('Self-hosted Whisper transcription:', result);
 
-    if (!transcription || transcription.trim() === '') {
+    if (!result || result.trim() === '') {
       throw new Error('No speech detected in the audio segment');
     }
 
-    return transcription.trim();
+    return result.trim();
 
   } catch (error) {
-    throw new Error(`Whisper transcription failed: ${error.message}`);
+    // Provide more helpful error messages
+    if (error.message.includes('Failed to fetch')) {
+      throw new Error(`Cannot connect to self-hosted Whisper API at ${baseUrl}. Make sure the service is running and accessible.`);
+    }
+    throw new Error(`Self-hosted Whisper transcription failed: ${error.message}`);
   }
 }

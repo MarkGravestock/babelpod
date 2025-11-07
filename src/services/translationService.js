@@ -2,6 +2,7 @@
 
 import { transcribeWithBrowser, isBrowserSpeechRecognitionSupported, getFullLanguageCode } from './transcription/browserTranscription';
 import { transcribeWithWhisper } from './transcription/whisperTranscription';
+import { transcribeWithSelfHostedWhisper } from './transcription/selfHostedWhisperTranscription';
 
 // Extract audio segment (last N seconds)
 export async function extractAudioSegment(audioElement, durationSeconds = 15) {
@@ -97,6 +98,20 @@ async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLa
       endTime,
       sourceLang,
       settings.whisperApiKey
+    );
+
+  } else if (method === 'selfhosted') {
+    // Use self-hosted Whisper API
+    if (!settings.selfHostedWhisperUrl) {
+      throw new Error('Self-hosted Whisper API URL required. Please configure it in Settings.');
+    }
+
+    return await transcribeWithSelfHostedWhisper(
+      audioElement,
+      startTime,
+      endTime,
+      sourceLang,
+      settings.selfHostedWhisperUrl
     );
 
   } else {
