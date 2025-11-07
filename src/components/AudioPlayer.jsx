@@ -95,7 +95,6 @@ export default function AudioPlayer({ episode, settings = {} }) {
   const rewindAndTranslate = async () => {
     const audio = audioRef.current;
     const wasPlaying = isPlaying;
-    const currentSrc = audioSrc;
 
     try {
       // Force pause the audio immediately
