@@ -37,7 +37,7 @@ describe('AudioPlayer Integration Tests', () => {
 
   const mockSettings = {
     transcriptionMethod: 'selfhosted',
-    selfHostedWhisperUrl: 'http://localhost:9000',
+    selfHostedWhisperUrl: 'http://localhost:9001',
     sourceLang: 'es',
     targetLang: 'en'
   };

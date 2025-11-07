@@ -91,13 +91,21 @@ docker-compose up -d
 docker-compose logs -f whisper
 ```
 
-4. Once you see "Application startup complete", the API is ready at `http://localhost:9000`
+4. Once you see "Application startup complete", the API is ready at `http://localhost:9001`
 
 5. In BabelPod:
    - Click Settings ⚙️
    - Select "Self-Hosted Whisper API"
-   - The URL should be pre-filled: `http://localhost:9000`
+   - The URL should be pre-filled: `http://localhost:9001`
    - Save and start translating!
+
+### CORS Support
+
+The Docker setup includes an nginx proxy that adds CORS headers automatically:
+- **Port 9001**: Public API with CORS support (use this in BabelPod) ✅
+- Port 9000: Internal Whisper API (no CORS, Docker network only)
+
+The nginx proxy handles all CORS preflight requests and adds the necessary headers to allow browser-based apps to access the Whisper API.
 
 ### Model Selection
 
@@ -121,7 +129,7 @@ For much faster transcription with GPU:
 
 ### API Documentation
 
-Once running, view the API docs at: `http://localhost:9000/docs`
+Once running, view the API docs at: `http://localhost:9001/docs`
 
 ### Stopping the Service
 

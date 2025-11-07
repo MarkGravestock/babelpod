@@ -5,8 +5,9 @@ services:
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:latest
     container_name: babelpod-whisper
-    ports:
-      - "9000:9000"
+    # Don't expose port directly - nginx proxy will handle it
+    expose:
+      - "9000"
     environment:
       # Whisper model to use: tiny, base, small, medium, large, large-v2, large-v3
       # Larger models are more accurate but slower and require more RAM
@@ -17,18 +18,9 @@ services:
       # faster_whisper is 4x faster with same accuracy, but requires more setup
       - ASR_ENGINE=faster_whisper
 
-      # CORS Settings - Allow browser access from any origin
-      # Change * to your specific domain for production (e.g., https://yourdomain.com)
-      - WHISPER_ALLOWED_ORIGINS=*
-
-      # Optional: Specify model path to persist models between restarts
-      # - ASR_MODEL_PATH=/data/models
-
     volumes:
       # Cache models to avoid re-downloading on container restart
       - whisper-models:/root/.cache/whisper
-      # Optional: If using ASR_MODEL_PATH
-      # - ./whisper-models:/data/models
 
     # Uncomment for GPU support (much faster transcription)
     # deploy:
@@ -48,29 +40,46 @@ services:
       retries: 3
       start_period: 40s
 
+  # Nginx CORS proxy
+  whisper-proxy:
+    image: nginx:alpine
+    container_name: babelpod-whisper-proxy
+    ports:
+      - "9001:9001"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - whisper
+    restart: unless-stopped
+
 volumes:
   whisper-models:
     driver: local
 
 # Usage Instructions:
 #
-# 1. Start the Whisper service:
+# 1. Start the Whisper service with CORS proxy:
 #    docker-compose up -d
 #
 # 2. Wait for the model to download (first time only):
 #    docker-compose logs -f whisper
 #
 # 3. Once running, the API will be available at:
-#    http://localhost:9000
+#    http://localhost:9001 (with CORS support)
 #
 # 4. View the API documentation at:
-#    http://localhost:9000/docs
+#    http://localhost:9001/docs
 #
 # 5. Configure BabelPod:
 #    - Open Settings in BabelPod
 #    - Select "Self-Hosted Whisper API"
-#    - Set URL to: http://localhost:9000
+#    - Set URL to: http://localhost:9001
 #    - Save and test!
+#
+# CORS Support:
+# - The nginx proxy on port 9001 adds CORS headers automatically
+# - This allows browser-based apps to access the API
+# - Direct Whisper API on port 9000 (internal only) doesn't have CORS
 #
 # Performance Tips:
 # - tiny model: fastest, least accurate (~1GB RAM)
