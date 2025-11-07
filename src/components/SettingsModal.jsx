@@ -50,18 +50,23 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
               <div className="radio-content">
                 <strong>Browser Speech Recognition</strong>
                 <span className="badge free">Free</span>
-                <p>Uses your browser's built-in speech recognition. Works in Chrome and Edge. No API key required.</p>
+                <span className="badge" style={{background: '#ff6b6b'}}>⚠️ Unreliable</span>
+                <p>Uses your browser's built-in speech recognition. <strong>Often fails with podcast audio</strong> - designed for microphone input.</p>
                 <div className="pros-cons">
                   <div className="pros">
                     ✅ Completely free<br/>
                     ✅ No API key needed<br/>
-                    ✅ Real-time
+                    ✅ No setup required
                   </div>
                   <div className="cons">
+                    ❌ Often fails with podcasts<br/>
                     ⚠️ Chrome/Edge only<br/>
-                    ⚠️ May be less accurate<br/>
+                    ⚠️ Less accurate<br/>
                     ⚠️ Requires internet
                   </div>
+                </div>
+                <div style={{marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(255,107,107,0.1)', borderRadius: '6px', fontSize: '0.85rem'}}>
+                  <strong>⚠️ Not Recommended:</strong> Browser speech recognition is designed for microphone input and often can't detect speech in podcast audio. Use Self-Hosted Whisper for reliable results.
                 </div>
               </div>
             </label>
@@ -104,19 +109,25 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
               <div className="radio-content">
                 <strong>Self-Hosted Whisper API</strong>
                 <span className="badge free">Free</span>
-                <p>Run your own Whisper server locally or on your infrastructure. Best of both worlds.</p>
+                <span className="badge" style={{background: '#51cf66'}}>⭐ Recommended</span>
+                <p>Run your own Whisper server locally or on your infrastructure. Best of both worlds - free, accurate, and reliable.</p>
                 <div className="pros-cons">
                   <div className="pros">
                     ✅ Completely free<br/>
                     ✅ Very accurate<br/>
+                    ✅ Reliable (works with podcasts)<br/>
                     ✅ Private & secure<br/>
                     ✅ Works in all browsers
                   </div>
                   <div className="cons">
-                    ⚙️ Requires setup<br/>
-                    💻 Needs server/Docker<br/>
-                    🐌 Speed depends on hardware
+                    ⚙️ Requires setup (5 min)<br/>
+                    💻 Needs Docker<br/>
+                    🐌 CPU: ~15-30s transcription<br/>
+                    ⚡ GPU: real-time
                   </div>
+                </div>
+                <div style={{marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(81,207,102,0.1)', borderRadius: '6px', fontSize: '0.85rem'}}>
+                  <strong>💡 Quick Setup:</strong> Run <code>docker-compose up -d</code> in the project folder. See README for details.
                 </div>
               </div>
             </label>
