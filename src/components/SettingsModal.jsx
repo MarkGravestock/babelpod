@@ -177,13 +177,19 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
           <h3>🌍 Languages</h3>
 
           <div className="form-group">
-            <label htmlFor="sourceLang">Podcast Language (Source)</label>
+            <label htmlFor="sourceLang">
+              Podcast Language (Source)
+              <small style={{display: 'block', fontWeight: 'normal', color: '#888', marginTop: '4px'}}>
+                Auto-detect from RSS feed or Whisper
+              </small>
+            </label>
             <select
               id="sourceLang"
               value={settings.sourceLang}
               onChange={(e) => handleChange('sourceLang', e.target.value)}
               className="language-select"
             >
+              <option value="auto">🔍 Auto-detect (recommended)</option>
               <option value="es">Spanish</option>
               <option value="fr">French</option>
               <option value="de">German</option>
@@ -196,7 +202,12 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="targetLang">Translation Language (Target)</label>
+            <label htmlFor="targetLang">
+              Your Language (Target)
+              <small style={{display: 'block', fontWeight: 'normal', color: '#888', marginTop: '4px'}}>
+                Detected from your browser settings
+              </small>
+            </label>
             <select
               id="targetLang"
               value={settings.targetLang}

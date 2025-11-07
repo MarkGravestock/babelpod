@@ -1,12 +1,22 @@
 // Settings storage service
 const STORAGE_KEY = 'babelpod_settings';
 
+/**
+ * Get browser's language preference
+ * @returns {string} - Two-letter language code
+ */
+function getBrowserLanguage() {
+  const browserLang = navigator.language || navigator.userLanguage || 'en';
+  // Extract just the language code (e.g., 'en-US' -> 'en')
+  return browserLang.split('-')[0].toLowerCase();
+}
+
 const DEFAULT_SETTINGS = {
   transcriptionMethod: 'browser',
   whisperApiKey: '',
   selfHostedWhisperUrl: 'http://localhost:9000',
-  sourceLang: 'es',
-  targetLang: 'en'
+  sourceLang: 'auto', // Auto-detect from RSS feed or let Whisper detect
+  targetLang: getBrowserLanguage() // User's browser language
 };
 
 /**

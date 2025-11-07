@@ -83,7 +83,11 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
     // whisper-asr-webservice uses a different endpoint format
     const formData = new FormData();
     formData.append('audio_file', audioBlob, 'audio.webm');
-    formData.append('language', language);
+    // Only specify language if provided, otherwise Whisper will auto-detect
+    // whisper-asr-webservice auto-detects when language is not provided or empty
+    if (language && language !== 'auto') {
+      formData.append('language', language);
+    }
     formData.append('task', 'transcribe');
     formData.append('output', 'txt');
 

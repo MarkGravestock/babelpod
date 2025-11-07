@@ -80,7 +80,10 @@ export async function transcribeWithWhisper(audioElement, startTime, endTime, la
     const formData = new FormData();
     formData.append('file', audioBlob, 'audio.webm');
     formData.append('model', 'whisper-1');
-    formData.append('language', language);
+    // Only specify language if provided, otherwise Whisper will auto-detect
+    if (language && language !== 'auto') {
+      formData.append('language', language);
+    }
     formData.append('response_format', 'text');
 
     console.log('Sending to Whisper API...');
