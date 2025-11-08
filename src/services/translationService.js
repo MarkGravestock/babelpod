@@ -72,13 +72,15 @@ export function speakText(text, lang = 'en-US') {
  * @param {number} endTime - End time in seconds
  * @param {string} sourceLang - Source language code
  * @param {Object} settings - User settings with transcription method and API key
+ * @param {Blob} audioBuffer - Optional pre-recorded audio buffer
  * @returns {Promise<string>} - The transcribed text
  */
-async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLang, settings) {
+async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLang, settings, audioBuffer = null) {
   const method = settings.transcriptionMethod || 'browser';
 
   if (method === 'browser') {
     // Use browser SpeechRecognition
+    // Note: Browser SpeechRecognition doesn't support buffering, always records on-demand
     if (!isBrowserSpeechRecognitionSupported()) {
       throw new Error('Browser speech recognition not supported. Please use Chrome/Edge or switch to Whisper API in Settings.');
     }
@@ -97,7 +99,8 @@ async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLa
       startTime,
       endTime,
       sourceLang,
-      settings.whisperApiKey
+      settings.whisperApiKey,
+      audioBuffer  // Pass audio buffer for continuous buffering
     );
 
   } else if (method === 'selfhosted') {
@@ -111,7 +114,8 @@ async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLa
       startTime,
       endTime,
       sourceLang,
-      settings.selfHostedWhisperUrl
+      settings.selfHostedWhisperUrl,
+      audioBuffer  // Pass audio buffer for continuous buffering
     );
 
   } else {
@@ -126,6 +130,7 @@ async function transcribeAudioSegment(audioElement, startTime, endTime, sourceLa
  * @param {string} sourceLang - Source language code
  * @param {string} targetLang - Target language code
  * @param {Object} settings - User settings
+ * @param {Blob} audioBuffer - Optional pre-recorded audio buffer
  * @returns {Promise<Object>} - Object with originalText, translatedText, and segment info
  */
 export async function translateAudioSegment(
@@ -133,7 +138,8 @@ export async function translateAudioSegment(
   durationSeconds = 15,
   sourceLang = 'es',
   targetLang = 'en',
-  settings = {}
+  settings = {},
+  audioBuffer = null
 ) {
   // Step 1: Extract segment info
   const segment = await extractAudioSegment(audioElement, durationSeconds);
@@ -144,7 +150,8 @@ export async function translateAudioSegment(
     segment.startTime,
     segment.endTime,
     sourceLang,
-    settings
+    settings,
+    audioBuffer  // Pass audio buffer for continuous buffering
   );
 
   console.log('Transcribed text:', transcriptionResult.text);
