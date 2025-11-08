@@ -138,22 +138,39 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      const errorText = await response.text().catch(() => '');
+      const errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
       throw new Error(`Self-hosted Whisper API error: ${errorMessage}`);
     }
 
-    const result = await response.json();
-    console.log('Self-hosted Whisper transcription:', result);
+    // whisper-asr-webservice returns JSON with 'json' output format
+    const contentType = response.headers.get('content-type');
+    let result;
+    let text;
+    let detectedLanguage = language || 'auto';
 
-    const text = result.text || '';
+    if (contentType && contentType.includes('application/json')) {
+      // JSON response - should include detected language
+      result = await response.json();
+      console.log('Self-hosted Whisper transcription (JSON):', result);
+      text = result.text || '';
+      detectedLanguage = result.language || language || 'auto';
+    } else {
+      // Plain text response - language detection not available
+      text = await response.text();
+      console.log('Self-hosted Whisper transcription (text):', text);
+      // When we get plain text, we can't determine the detected language
+      // Use the input language if provided, otherwise default to 'auto'
+      detectedLanguage = (language && language !== 'auto') ? language : 'auto';
+    }
+
     if (!text || text.trim() === '') {
       throw new Error('No speech detected in the audio segment');
     }
 
     return {
       text: text.trim(),
-      language: result.language || language || 'auto' // Return detected language
+      language: detectedLanguage
     };
 
   } catch (error) {
