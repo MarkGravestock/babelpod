@@ -9,11 +9,40 @@
  */
 async function recordAudioSegment(audioElement, startTime, endTime) {
   return new Promise((resolve, reject) => {
+    let audioContext = null;
+    let source = null;
+    let tempAudio = null;
+
+    const cleanup = () => {
+      try {
+        if (source) {
+          source.disconnect();
+        }
+        if (audioContext && audioContext.state !== 'closed') {
+          audioContext.close();
+        }
+        if (tempAudio) {
+          tempAudio.pause();
+          tempAudio.src = '';
+          tempAudio.load();
+        }
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
+    };
+
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaElementSource(audioElement);
+      // Create a temporary audio element for recording
+      // This prevents the "already connected" error on subsequent recordings
+      tempAudio = new Audio();
+      tempAudio.src = audioElement.src;
+      tempAudio.crossOrigin = audioElement.crossOrigin;
+
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaElementSource(tempAudio);
       const destination = audioContext.createMediaStreamDestination();
 
+      // Connect to both the recorder and speakers
       source.connect(destination);
       source.connect(audioContext.destination);
 
@@ -28,14 +57,22 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        audioElement.pause();
+
+        // Clean up AudioContext and disconnect source
+        cleanup();
+
         resolve(blob);
       };
 
-      // Set audio to start time
-      audioElement.currentTime = startTime;
+      mediaRecorder.onerror = (error) => {
+        cleanup();
+        reject(new Error(`MediaRecorder error: ${error.message || 'Unknown error'}`));
+      };
 
-      audioElement.onplay = () => {
+      // Set audio to start time
+      tempAudio.currentTime = startTime;
+
+      tempAudio.onplay = () => {
         mediaRecorder.start();
 
         // Stop recording after duration
@@ -47,11 +84,13 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
         }, duration);
       };
 
-      audioElement.play().catch(error => {
+      tempAudio.play().catch(error => {
+        cleanup();
         reject(new Error(`Failed to play audio: ${error.message}`));
       });
 
     } catch (error) {
+      cleanup();
       reject(new Error(`Failed to record audio segment: ${error.message}`));
     }
   });
