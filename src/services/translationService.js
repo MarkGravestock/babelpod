@@ -139,7 +139,7 @@ export async function translateAudioSegment(
   const segment = await extractAudioSegment(audioElement, durationSeconds);
 
   // Step 2: Transcribe the audio segment
-  const originalText = await transcribeAudioSegment(
+  const transcriptionResult = await transcribeAudioSegment(
     audioElement,
     segment.startTime,
     segment.endTime,
@@ -147,17 +147,28 @@ export async function translateAudioSegment(
     settings
   );
 
-  console.log('Transcribed text:', originalText);
+  console.log('Transcribed text:', transcriptionResult.text);
+  console.log('Detected language:', transcriptionResult.language);
 
   // Step 3: Translate the text
-  const translatedText = await translateText(originalText, sourceLang, targetLang);
+  // Use detected language from transcription if auto-detect was requested
+  const detectedSourceLang = transcriptionResult.language !== 'auto'
+    ? transcriptionResult.language
+    : sourceLang;
+
+  const translatedText = await translateText(
+    transcriptionResult.text,
+    detectedSourceLang,
+    targetLang
+  );
 
   console.log('Translated text:', translatedText);
 
   return {
-    originalText,
+    originalText: transcriptionResult.text,
     translatedText,
-    segment
+    segment,
+    detectedLanguage: transcriptionResult.language
   };
 }
 
