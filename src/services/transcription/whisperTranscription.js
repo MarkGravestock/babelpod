@@ -62,9 +62,9 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
  * @param {HTMLAudioElement} audioElement - The audio element to transcribe from
  * @param {number} startTime - Start time in seconds
  * @param {number} endTime - End time in seconds
- * @param {string} language - Language code (e.g., 'es', 'fr')
+ * @param {string} language - Language code (e.g., 'es', 'fr') or 'auto' for auto-detect
  * @param {string} apiKey - OpenAI API key
- * @returns {Promise<string>} - The transcribed text
+ * @returns {Promise<{text: string, language: string}>} - The transcribed text and detected language
  */
 export async function transcribeWithWhisper(audioElement, startTime, endTime, language, apiKey) {
   if (!apiKey) {
@@ -84,7 +84,8 @@ export async function transcribeWithWhisper(audioElement, startTime, endTime, la
     if (language && language !== 'auto') {
       formData.append('language', language);
     }
-    formData.append('response_format', 'text');
+    // Use verbose_json to get detected language
+    formData.append('response_format', 'verbose_json');
 
     console.log('Sending to Whisper API...');
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -101,14 +102,17 @@ export async function transcribeWithWhisper(audioElement, startTime, endTime, la
       throw new Error(`Whisper API error: ${errorMessage}`);
     }
 
-    const transcription = await response.text();
-    console.log('Whisper transcription:', transcription);
+    const result = await response.json();
+    console.log('Whisper transcription:', result);
 
-    if (!transcription || transcription.trim() === '') {
+    if (!result.text || result.text.trim() === '') {
       throw new Error('No speech detected in the audio segment');
     }
 
-    return transcription.trim();
+    return {
+      text: result.text.trim(),
+      language: result.language || language || 'auto' // Return detected language
+    };
 
   } catch (error) {
     throw new Error(`Whisper transcription failed: ${error.message}`);

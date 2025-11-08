@@ -101,9 +101,9 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
  * @param {HTMLAudioElement} audioElement - The audio element to transcribe from
  * @param {number} startTime - Start time in seconds
  * @param {number} endTime - End time in seconds
- * @param {string} language - Language code (e.g., 'es', 'fr')
+ * @param {string} language - Language code (e.g., 'es', 'fr') or 'auto' for auto-detect
  * @param {string} apiUrl - Self-hosted Whisper API URL
- * @returns {Promise<string>} - The transcribed text
+ * @returns {Promise<{text: string, language: string}>} - The transcribed text and detected language
  */
 export async function transcribeWithSelfHostedWhisper(audioElement, startTime, endTime, language, apiUrl) {
   if (!apiUrl) {
@@ -128,7 +128,8 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
       formData.append('language', language);
     }
     formData.append('task', 'transcribe');
-    formData.append('output', 'txt');
+    // Use json output to get detected language
+    formData.append('output', 'json');
 
     console.log(`Sending to self-hosted Whisper API at ${baseUrl}/asr...`);
     const response = await fetch(`${baseUrl}/asr`, {
@@ -142,14 +143,18 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
       throw new Error(`Self-hosted Whisper API error: ${errorMessage}`);
     }
 
-    const result = await response.text();
+    const result = await response.json();
     console.log('Self-hosted Whisper transcription:', result);
 
-    if (!result || result.trim() === '') {
+    const text = result.text || '';
+    if (!text || text.trim() === '') {
       throw new Error('No speech detected in the audio segment');
     }
 
-    return result.trim();
+    return {
+      text: text.trim(),
+      language: result.language || language || 'auto' // Return detected language
+    };
 
   } catch (error) {
     // Provide more helpful error messages
