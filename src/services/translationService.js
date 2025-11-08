@@ -152,9 +152,20 @@ export async function translateAudioSegment(
 
   // Step 3: Translate the text
   // Use detected language from transcription if auto-detect was requested
-  const detectedSourceLang = transcriptionResult.language !== 'auto'
-    ? transcriptionResult.language
-    : sourceLang;
+  let detectedSourceLang = transcriptionResult.language;
+
+  // If language is still 'auto' (couldn't be detected), try to use sourceLang
+  // If both are 'auto', fall back to a sensible default for translation
+  if (detectedSourceLang === 'auto') {
+    if (sourceLang !== 'auto') {
+      detectedSourceLang = sourceLang;
+    } else {
+      // Last resort: assume Spanish as it's a common podcast language
+      // User can override by manually selecting language in settings
+      console.warn('Could not detect language, defaulting to Spanish (es) for translation');
+      detectedSourceLang = 'es';
+    }
+  }
 
   const translatedText = await translateText(
     transcriptionResult.text,
