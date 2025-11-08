@@ -1,6 +1,73 @@
 // OpenAI Whisper API transcription
 
 /**
+ * Map Whisper language names to ISO 639-1 codes
+ * Whisper returns language names like "english", "spanish", "polish"
+ * Translation APIs need ISO codes like "en", "es", "pl"
+ */
+function whisperLanguageToISO(languageName) {
+  const languageMap = {
+    'english': 'en',
+    'spanish': 'es',
+    'french': 'fr',
+    'german': 'de',
+    'italian': 'it',
+    'portuguese': 'pt',
+    'dutch': 'nl',
+    'russian': 'ru',
+    'chinese': 'zh',
+    'japanese': 'ja',
+    'korean': 'ko',
+    'arabic': 'ar',
+    'turkish': 'tr',
+    'polish': 'pl',
+    'danish': 'da',
+    'swedish': 'sv',
+    'norwegian': 'no',
+    'finnish': 'fi',
+    'greek': 'el',
+    'czech': 'cs',
+    'hungarian': 'hu',
+    'romanian': 'ro',
+    'bulgarian': 'bg',
+    'ukrainian': 'uk',
+    'croatian': 'hr',
+    'serbian': 'sr',
+    'slovak': 'sk',
+    'slovenian': 'sl',
+    'lithuanian': 'lt',
+    'latvian': 'lv',
+    'estonian': 'et',
+    'thai': 'th',
+    'vietnamese': 'vi',
+    'indonesian': 'id',
+    'malay': 'ms',
+    'hindi': 'hi',
+    'bengali': 'bn',
+    'tamil': 'ta',
+    'telugu': 'te',
+    'hebrew': 'he',
+    'persian': 'fa',
+    'urdu': 'ur',
+    'catalan': 'ca',
+    'basque': 'eu',
+    'galician': 'gl'
+  };
+
+  const normalizedName = languageName?.toLowerCase().trim();
+  const isoCode = languageMap[normalizedName];
+
+  if (isoCode) {
+    console.log(`Mapped Whisper language "${languageName}" to ISO code "${isoCode}"`);
+    return isoCode;
+  }
+
+  // If not found in map, return as-is (might already be ISO code)
+  console.warn(`Unknown language name from Whisper: "${languageName}", using as-is`);
+  return languageName || 'auto';
+}
+
+/**
  * Record audio segment from audio element to a blob
  * @param {HTMLAudioElement} audioElement - The audio element
  * @param {number} startTime - Start time in seconds
@@ -118,9 +185,12 @@ export async function transcribeWithWhisper(audioElement, startTime, endTime, la
       throw new Error('No speech detected in the audio segment');
     }
 
+    // Convert Whisper language name to ISO code
+    const detectedLanguage = result.language ? whisperLanguageToISO(result.language) : (language || 'auto');
+
     return {
       text: result.text.trim(),
-      language: result.language || language || 'auto' // Return detected language
+      language: detectedLanguage
     };
 
   } catch (error) {

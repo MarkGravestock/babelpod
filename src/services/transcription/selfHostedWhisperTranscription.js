@@ -1,6 +1,73 @@
 // Self-hosted Whisper API transcription
 
 /**
+ * Map Whisper language names to ISO 639-1 codes
+ * Whisper returns language names like "english", "spanish", "polish"
+ * Translation APIs need ISO codes like "en", "es", "pl"
+ */
+function whisperLanguageToISO(languageName) {
+  const languageMap = {
+    'english': 'en',
+    'spanish': 'es',
+    'french': 'fr',
+    'german': 'de',
+    'italian': 'it',
+    'portuguese': 'pt',
+    'dutch': 'nl',
+    'russian': 'ru',
+    'chinese': 'zh',
+    'japanese': 'ja',
+    'korean': 'ko',
+    'arabic': 'ar',
+    'turkish': 'tr',
+    'polish': 'pl',
+    'danish': 'da',
+    'swedish': 'sv',
+    'norwegian': 'no',
+    'finnish': 'fi',
+    'greek': 'el',
+    'czech': 'cs',
+    'hungarian': 'hu',
+    'romanian': 'ro',
+    'bulgarian': 'bg',
+    'ukrainian': 'uk',
+    'croatian': 'hr',
+    'serbian': 'sr',
+    'slovak': 'sk',
+    'slovenian': 'sl',
+    'lithuanian': 'lt',
+    'latvian': 'lv',
+    'estonian': 'et',
+    'thai': 'th',
+    'vietnamese': 'vi',
+    'indonesian': 'id',
+    'malay': 'ms',
+    'hindi': 'hi',
+    'bengali': 'bn',
+    'tamil': 'ta',
+    'telugu': 'te',
+    'hebrew': 'he',
+    'persian': 'fa',
+    'urdu': 'ur',
+    'catalan': 'ca',
+    'basque': 'eu',
+    'galician': 'gl'
+  };
+
+  const normalizedName = languageName?.toLowerCase().trim();
+  const isoCode = languageMap[normalizedName];
+
+  if (isoCode) {
+    console.log(`Mapped Whisper language "${languageName}" to ISO code "${isoCode}"`);
+    return isoCode;
+  }
+
+  // If not found in map, return as-is (might already be ISO code)
+  console.warn(`Unknown language name from Whisper: "${languageName}", using as-is`);
+  return languageName || 'auto';
+}
+
+/**
  * Record audio segment from audio element to a blob
  * @param {HTMLAudioElement} audioElement - The audio element
  * @param {number} startTime - Start time in seconds
@@ -163,7 +230,13 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
       result = await response.json();
       console.log('Self-hosted Whisper transcription (JSON):', result);
       text = result.text || '';
-      detectedLanguage = result.language || language || 'auto';
+
+      // Convert language name to ISO code if detected
+      if (result.language) {
+        detectedLanguage = whisperLanguageToISO(result.language);
+      } else {
+        detectedLanguage = language || 'auto';
+      }
     } else {
       // Plain text response - language detection not available
       text = await response.text();
