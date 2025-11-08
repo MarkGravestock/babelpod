@@ -42,7 +42,19 @@ describe('AudioPlayer Integration Tests', () => {
     targetLang: 'en'
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Reset mocks between tests
+    vi.clearAllMocks();
+
+    // Re-establish the default mock behavior
+    const { translateAudioSegment, speakText } = await import('../services/translationService');
+    translateAudioSegment.mockResolvedValue({
+      originalText: 'Hola mundo',
+      translatedText: 'Hello world',
+      segment: { startTime: 10, endTime: 25, duration: 15 }
+    });
+    speakText.mockResolvedValue();
+
     // Mock HTMLMediaElement for audio
     window.HTMLMediaElement.prototype.load = vi.fn(function() {
       setTimeout(() => {
@@ -99,9 +111,13 @@ describe('AudioPlayer Integration Tests', () => {
       expect(audioElement).toBeTruthy();
     });
 
-    // Start playing
+    // Simulate playing state by calling play and updating time
     audioElement.currentTime = 30;
-    audioElement.paused = false;
+    audioElement.dispatchEvent(new Event('timeupdate'));
+
+    // Click play button to set playing state
+    const playButton = screen.getByRole('button', { name: /▶|⏸/ });
+    await user.click(playButton);
 
     const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
     await user.click(translateButton);
@@ -130,6 +146,7 @@ describe('AudioPlayer Integration Tests', () => {
     });
 
     audioElement.currentTime = 20;
+    audioElement.dispatchEvent(new Event('timeupdate'));
 
     const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
     await user.click(translateButton);
@@ -161,6 +178,7 @@ describe('AudioPlayer Integration Tests', () => {
     });
 
     audioElement.currentTime = 15;
+    audioElement.dispatchEvent(new Event('timeupdate'));
 
     const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
     await user.click(translateButton);
@@ -194,6 +212,7 @@ describe('AudioPlayer Integration Tests', () => {
 
     const originalPosition = 35;
     audioElement.currentTime = originalPosition;
+    audioElement.dispatchEvent(new Event('timeupdate'));
 
     const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
     await user.click(translateButton);
@@ -207,20 +226,19 @@ describe('AudioPlayer Integration Tests', () => {
     expect(audioElement.currentTime).toBe(originalPosition);
   });
 
-  it('should disable translate button when audio time is less than 1 second', () => {
+  it('should disable translate button when audio time is less than 1 second', async () => {
     const { container } = render(
       <AudioPlayer episode={mockEpisode} settings={mockSettings} />
     );
 
     const audioElement = container.querySelector('audio');
     audioElement.currentTime = 0.5;
+    audioElement.dispatchEvent(new Event('timeupdate'));
 
-    if (audioElement.ontimeupdate) {
-      audioElement.ontimeupdate();
-    }
-
-    const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
-    expect(translateButton).toBeDisabled();
+    await waitFor(() => {
+      const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
+      expect(translateButton).toBeDisabled();
+    });
   });
 
   it('should enable translate button when audio time is greater than 1 second', async () => {
@@ -234,10 +252,7 @@ describe('AudioPlayer Integration Tests', () => {
     });
 
     audioElement.currentTime = 5;
-
-    if (audioElement.ontimeupdate) {
-      audioElement.ontimeupdate();
-    }
+    audioElement.dispatchEvent(new Event('timeupdate'));
 
     await waitFor(() => {
       const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
