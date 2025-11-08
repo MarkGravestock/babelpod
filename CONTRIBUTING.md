@@ -28,19 +28,25 @@
    - Add tests for new functionality
    - Update documentation if needed
 
-2. **Run tests locally**
+2. **Run linter**
+   ```bash
+   npm run lint
+   ```
+   Code must pass linting with no errors before submitting a PR.
+
+3. **Run tests locally**
    ```bash
    npm test
    ```
    All tests must pass before submitting a PR.
 
-3. **Run the build**
+4. **Run the build**
    ```bash
    npm run build
    ```
    The build must complete successfully without errors.
 
-4. **Commit your changes**
+5. **Commit your changes**
    ```bash
    git add .
    git commit -m "Clear, descriptive commit message"
@@ -56,6 +62,7 @@
 **Required Checklist:**
 
 - [ ] Branch was created from latest `main`
+- [ ] Code passes linting with no errors (`npm run lint`)
 - [ ] All tests pass (`npm test`)
 - [ ] Build succeeds (`npm run build`)
 - [ ] Code follows existing style and conventions
@@ -79,6 +86,12 @@
 
 ### Testing
 
+#### Run Linter
+```bash
+npm run lint
+```
+Checks for code style and potential errors. Must pass with 0 errors before opening a PR.
+
 #### Run All Tests
 ```bash
 npm test
@@ -93,6 +106,12 @@ npm test path/to/test/file.test.js
 ```bash
 npm test -- --watch
 ```
+
+#### Run Full Pre-PR Check
+```bash
+npm run lint && npm test && npm run build
+```
+This runs all checks that GitHub Actions will run.
 
 ### Common Issues
 

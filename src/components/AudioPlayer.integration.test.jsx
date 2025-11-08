@@ -90,10 +90,13 @@ describe('AudioPlayer Integration Tests', () => {
 
   it('should pause audio during translation and resume if it was playing', async () => {
     const user = userEvent.setup();
-    render(<AudioPlayer episode={mockEpisode} settings={mockSettings} />);
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
 
+    const audioElement = container.querySelector('audio');
     await waitFor(() => {
-      expect(audioElement).toBeDefined();
+      expect(audioElement).toBeTruthy();
     });
 
     // Start playing
@@ -117,10 +120,13 @@ describe('AudioPlayer Integration Tests', () => {
 
   it('should show transcribed and translated text during translation', async () => {
     const user = userEvent.setup();
-    render(<AudioPlayer episode={mockEpisode} settings={mockSettings} />);
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
 
+    const audioElement = container.querySelector('audio');
     await waitFor(() => {
-      expect(audioElement).toBeDefined();
+      expect(audioElement).toBeTruthy();
     });
 
     audioElement.currentTime = 20;
@@ -145,10 +151,13 @@ describe('AudioPlayer Integration Tests', () => {
 
   it('should clear translation texts after delay', async () => {
     const user = userEvent.setup();
-    render(<AudioPlayer episode={mockEpisode} settings={mockSettings} />);
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
 
+    const audioElement = container.querySelector('audio');
     await waitFor(() => {
-      expect(audioElement).toBeDefined();
+      expect(audioElement).toBeTruthy();
     });
 
     audioElement.currentTime = 15;
@@ -174,10 +183,13 @@ describe('AudioPlayer Integration Tests', () => {
     translateAudioSegment.mockRejectedValueOnce(new Error('Translation failed'));
 
     const user = userEvent.setup();
-    render(<AudioPlayer episode={mockEpisode} settings={mockSettings} />);
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
 
+    const audioElement = container.querySelector('audio');
     await waitFor(() => {
-      expect(audioElement).toBeDefined();
+      expect(audioElement).toBeTruthy();
     });
 
     const originalPosition = 35;
@@ -196,8 +208,11 @@ describe('AudioPlayer Integration Tests', () => {
   });
 
   it('should disable translate button when audio time is less than 1 second', () => {
-    render(<AudioPlayer episode={mockEpisode} settings={mockSettings} />);
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
 
+    const audioElement = container.querySelector('audio');
     audioElement.currentTime = 0.5;
 
     if (audioElement.ontimeupdate) {
@@ -209,10 +224,13 @@ describe('AudioPlayer Integration Tests', () => {
   });
 
   it('should enable translate button when audio time is greater than 1 second', async () => {
-    render(<AudioPlayer episode={mockEpisode} settings={mockSettings} />);
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
 
+    const audioElement = container.querySelector('audio');
     await waitFor(() => {
-      expect(audioElement).toBeDefined();
+      expect(audioElement).toBeTruthy();
     });
 
     audioElement.currentTime = 5;
