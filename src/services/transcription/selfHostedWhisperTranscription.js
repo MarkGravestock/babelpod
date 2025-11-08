@@ -103,9 +103,10 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
  * @param {number} endTime - End time in seconds
  * @param {string} language - Language code (e.g., 'es', 'fr') or 'auto' for auto-detect
  * @param {string} apiUrl - Self-hosted Whisper API URL
+ * @param {Blob} audioBuffer - Optional pre-recorded audio buffer (for continuous buffering strategy)
  * @returns {Promise<{text: string, language: string}>} - The transcribed text and detected language
  */
-export async function transcribeWithSelfHostedWhisper(audioElement, startTime, endTime, language, apiUrl) {
+export async function transcribeWithSelfHostedWhisper(audioElement, startTime, endTime, language, apiUrl, audioBuffer = null) {
   if (!apiUrl) {
     throw new Error('Self-hosted Whisper API URL is required. Please configure it in Settings.');
   }
@@ -114,9 +115,17 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
   const baseUrl = apiUrl.replace(/\/$/, '');
 
   try {
-    // Step 1: Record the audio segment
-    console.log(`Recording audio segment from ${startTime}s to ${endTime}s`);
-    const audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    let audioBlob;
+
+    if (audioBuffer) {
+      // Step 1a: Use provided buffer (continuous buffering strategy)
+      console.log('Using pre-recorded audio buffer (continuous strategy)');
+      audioBlob = audioBuffer;
+    } else {
+      // Step 1b: Record the audio segment on-demand (traditional strategy)
+      console.log(`Recording audio segment from ${startTime}s to ${endTime}s (on-demand strategy)`);
+      audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    }
 
     // Step 2: Send to self-hosted Whisper API
     // whisper-asr-webservice uses a different endpoint format

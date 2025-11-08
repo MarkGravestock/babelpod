@@ -64,17 +64,26 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
  * @param {number} endTime - End time in seconds
  * @param {string} language - Language code (e.g., 'es', 'fr') or 'auto' for auto-detect
  * @param {string} apiKey - OpenAI API key
+ * @param {Blob} audioBuffer - Optional pre-recorded audio buffer (for continuous buffering strategy)
  * @returns {Promise<{text: string, language: string}>} - The transcribed text and detected language
  */
-export async function transcribeWithWhisper(audioElement, startTime, endTime, language, apiKey) {
+export async function transcribeWithWhisper(audioElement, startTime, endTime, language, apiKey, audioBuffer = null) {
   if (!apiKey) {
     throw new Error('OpenAI API key is required. Please add your API key in Settings.');
   }
 
   try {
-    // Step 1: Record the audio segment
-    console.log(`Recording audio segment from ${startTime}s to ${endTime}s`);
-    const audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    let audioBlob;
+
+    if (audioBuffer) {
+      // Step 1a: Use provided buffer (continuous buffering strategy)
+      console.log('Using pre-recorded audio buffer (continuous strategy)');
+      audioBlob = audioBuffer;
+    } else {
+      // Step 1b: Record the audio segment on-demand (traditional strategy)
+      console.log(`Recording audio segment from ${startTime}s to ${endTime}s (on-demand strategy)`);
+      audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    }
 
     // Step 2: Send to Whisper API
     const formData = new FormData();

@@ -235,6 +235,50 @@ export default function SettingsModal({ isOpen, onClose, onSave }) {
           </div>
         </div>
 
+        {(settings.transcriptionMethod === 'whisper' || settings.transcriptionMethod === 'selfhosted') && (
+          <div className="settings-section">
+            <h3>⚡ Performance</h3>
+
+            <div className="form-group">
+              <label htmlFor="audioBufferStrategy">
+                Audio Buffering Strategy
+                <small style={{display: 'block', fontWeight: 'normal', color: '#888', marginTop: '4px'}}>
+                  How audio is recorded for transcription
+                </small>
+              </label>
+              <select
+                id="audioBufferStrategy"
+                value={settings.audioBufferStrategy || 'continuous'}
+                onChange={(e) => handleChange('audioBufferStrategy', e.target.value)}
+                className="language-select"
+              >
+                <option value="continuous">⚡ Continuous Buffering (Recommended - Faster)</option>
+                <option value="on-demand">⏱️ On-Demand Recording (Lower Memory)</option>
+              </select>
+
+              <div style={{marginTop: '0.75rem', padding: '0.75rem', background: '#f0f9ff', borderRadius: '6px', fontSize: '0.9rem', lineHeight: '1.5'}}>
+                {settings.audioBufferStrategy === 'continuous' || !settings.audioBufferStrategy ? (
+                  <>
+                    <strong>⚡ Continuous Buffering:</strong><br/>
+                    • Continuously records last 15 seconds in background<br/>
+                    • Translation starts <strong>instantly</strong> (15s faster)<br/>
+                    • Small memory overhead (~1-2MB)<br/>
+                    • Best for active listening sessions
+                  </>
+                ) : (
+                  <>
+                    <strong>⏱️ On-Demand Recording:</strong><br/>
+                    • Records 15 seconds after you click translate<br/>
+                    • Adds ~15 second delay before transcription starts<br/>
+                    • Minimal memory usage<br/>
+                    • Better for low-end devices or background listening
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="settings-actions">
           <button onClick={onClose} className="btn-secondary">
             Cancel

@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   whisperApiKey: '',
   selfHostedWhisperUrl: 'http://localhost:9001',
   sourceLang: 'auto', // Auto-detect from RSS feed or let Whisper detect
-  targetLang: getBrowserLanguage() // User's browser language
+  targetLang: getBrowserLanguage(), // User's browser language
+  audioBufferStrategy: 'continuous' // 'continuous' or 'on-demand'
 };
 
 /**
