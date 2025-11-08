@@ -31,14 +31,14 @@ export class AudioBufferManager {
       this.tempAudio = new Audio();
       this.tempAudio.src = this.audioElement.src;
       this.tempAudio.crossOrigin = this.audioElement.crossOrigin;
-      this.tempAudio.muted = true; // Mute the buffer audio to avoid echo
-      this.tempAudio.volume = 0;
+      // Don't mute - we need the audio data for recording
+      // The audio won't play through speakers because we only connect to destination, not speakers
 
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
       this.source = this.audioContext.createMediaElementSource(this.tempAudio);
       const destination = this.audioContext.createMediaStreamDestination();
 
-      // Connect to recording destination (not speakers)
+      // Connect ONLY to recording destination (not speakers to avoid echo)
       this.source.connect(destination);
 
       this.mediaRecorder = new MediaRecorder(destination.stream, {
@@ -60,18 +60,34 @@ export class AudioBufferManager {
       // Request data every second to maintain smooth buffer
       this.mediaRecorder.start(1000);
 
+      // Start temp audio playing if main audio is playing
+      if (!this.audioElement.paused) {
+        this.tempAudio.currentTime = this.audioElement.currentTime;
+        this.tempAudio.play().catch(e => {
+          console.error('Failed to start temp audio:', e);
+        });
+      }
+
       // Keep temp audio in sync with main audio
       this.syncInterval = setInterval(() => {
-        if (this.tempAudio && this.audioElement && !this.audioElement.paused) {
-          // Sync position
-          const timeDiff = Math.abs(this.tempAudio.currentTime - this.audioElement.currentTime);
-          if (timeDiff > 0.5) { // If more than 500ms out of sync
-            this.tempAudio.currentTime = this.audioElement.currentTime;
-          }
+        if (this.tempAudio && this.audioElement) {
+          const mainPaused = this.audioElement.paused;
+          const tempPaused = this.tempAudio.paused;
 
-          // Ensure temp audio is playing when main audio is playing
-          if (this.tempAudio.paused && !this.audioElement.paused) {
-            this.tempAudio.play().catch(e => console.error('Failed to play temp audio:', e));
+          if (!mainPaused) {
+            // Main audio is playing - ensure temp is also playing
+            if (tempPaused) {
+              this.tempAudio.play().catch(e => console.error('Failed to play temp audio:', e));
+            }
+
+            // Sync position if drifted
+            const timeDiff = Math.abs(this.tempAudio.currentTime - this.audioElement.currentTime);
+            if (timeDiff > 0.5) { // If more than 500ms out of sync
+              this.tempAudio.currentTime = this.audioElement.currentTime;
+            }
+          } else if (!tempPaused) {
+            // Main audio is paused - pause temp audio too
+            this.tempAudio.pause();
           }
         }
       }, 500);
@@ -146,7 +162,12 @@ export class AudioBufferManager {
     const blobs = this.audioChunks.map(chunk => chunk.blob);
     const audioBlob = new Blob(blobs, { type: 'audio/webm' });
 
-    console.log(`Returning buffered audio: ${this.audioChunks.length} chunks, ${(audioBlob.size / 1024).toFixed(2)} KB`);
+    console.log(`Returning buffered audio: ${this.audioChunks.length} chunks, ${(audioBlob.size / 1024).toFixed(2)} KB, temp audio playing: ${!this.tempAudio?.paused}, temp time: ${this.tempAudio?.currentTime?.toFixed(1)}s`);
+
+    // Check if blob has actual audio data
+    if (audioBlob.size < 1000) { // Less than 1KB is probably empty
+      console.warn('Buffer size is very small, may not contain valid audio data');
+    }
 
     return audioBlob;
   }
