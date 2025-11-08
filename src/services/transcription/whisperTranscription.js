@@ -1,6 +1,73 @@
 // OpenAI Whisper API transcription
 
 /**
+ * Map Whisper language names to ISO 639-1 codes
+ * Whisper returns language names like "english", "spanish", "polish"
+ * Translation APIs need ISO codes like "en", "es", "pl"
+ */
+function whisperLanguageToISO(languageName) {
+  const languageMap = {
+    'english': 'en',
+    'spanish': 'es',
+    'french': 'fr',
+    'german': 'de',
+    'italian': 'it',
+    'portuguese': 'pt',
+    'dutch': 'nl',
+    'russian': 'ru',
+    'chinese': 'zh',
+    'japanese': 'ja',
+    'korean': 'ko',
+    'arabic': 'ar',
+    'turkish': 'tr',
+    'polish': 'pl',
+    'danish': 'da',
+    'swedish': 'sv',
+    'norwegian': 'no',
+    'finnish': 'fi',
+    'greek': 'el',
+    'czech': 'cs',
+    'hungarian': 'hu',
+    'romanian': 'ro',
+    'bulgarian': 'bg',
+    'ukrainian': 'uk',
+    'croatian': 'hr',
+    'serbian': 'sr',
+    'slovak': 'sk',
+    'slovenian': 'sl',
+    'lithuanian': 'lt',
+    'latvian': 'lv',
+    'estonian': 'et',
+    'thai': 'th',
+    'vietnamese': 'vi',
+    'indonesian': 'id',
+    'malay': 'ms',
+    'hindi': 'hi',
+    'bengali': 'bn',
+    'tamil': 'ta',
+    'telugu': 'te',
+    'hebrew': 'he',
+    'persian': 'fa',
+    'urdu': 'ur',
+    'catalan': 'ca',
+    'basque': 'eu',
+    'galician': 'gl'
+  };
+
+  const normalizedName = languageName?.toLowerCase().trim();
+  const isoCode = languageMap[normalizedName];
+
+  if (isoCode) {
+    console.log(`Mapped Whisper language "${languageName}" to ISO code "${isoCode}"`);
+    return isoCode;
+  }
+
+  // If not found in map, return as-is (might already be ISO code)
+  console.warn(`Unknown language name from Whisper: "${languageName}", using as-is`);
+  return languageName || 'auto';
+}
+
+/**
  * Record audio segment from audio element to a blob
  * @param {HTMLAudioElement} audioElement - The audio element
  * @param {number} startTime - Start time in seconds
@@ -62,19 +129,28 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
  * @param {HTMLAudioElement} audioElement - The audio element to transcribe from
  * @param {number} startTime - Start time in seconds
  * @param {number} endTime - End time in seconds
- * @param {string} language - Language code (e.g., 'es', 'fr')
+ * @param {string} language - Language code (e.g., 'es', 'fr') or 'auto' for auto-detect
  * @param {string} apiKey - OpenAI API key
- * @returns {Promise<string>} - The transcribed text
+ * @param {Blob} audioBuffer - Optional pre-recorded audio buffer (for continuous buffering strategy)
+ * @returns {Promise<{text: string, language: string}>} - The transcribed text and detected language
  */
-export async function transcribeWithWhisper(audioElement, startTime, endTime, language, apiKey) {
+export async function transcribeWithWhisper(audioElement, startTime, endTime, language, apiKey, audioBuffer = null) {
   if (!apiKey) {
     throw new Error('OpenAI API key is required. Please add your API key in Settings.');
   }
 
   try {
-    // Step 1: Record the audio segment
-    console.log(`Recording audio segment from ${startTime}s to ${endTime}s`);
-    const audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    let audioBlob;
+
+    if (audioBuffer) {
+      // Step 1a: Use provided buffer (continuous buffering strategy)
+      console.log('Using pre-recorded audio buffer (continuous strategy)');
+      audioBlob = audioBuffer;
+    } else {
+      // Step 1b: Record the audio segment on-demand (traditional strategy)
+      console.log(`Recording audio segment from ${startTime}s to ${endTime}s (on-demand strategy)`);
+      audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    }
 
     // Step 2: Send to Whisper API
     const formData = new FormData();
@@ -84,7 +160,8 @@ export async function transcribeWithWhisper(audioElement, startTime, endTime, la
     if (language && language !== 'auto') {
       formData.append('language', language);
     }
-    formData.append('response_format', 'text');
+    // Use verbose_json to get detected language
+    formData.append('response_format', 'verbose_json');
 
     console.log('Sending to Whisper API...');
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -101,14 +178,20 @@ export async function transcribeWithWhisper(audioElement, startTime, endTime, la
       throw new Error(`Whisper API error: ${errorMessage}`);
     }
 
-    const transcription = await response.text();
-    console.log('Whisper transcription:', transcription);
+    const result = await response.json();
+    console.log('Whisper transcription:', result);
 
-    if (!transcription || transcription.trim() === '') {
+    if (!result.text || result.text.trim() === '') {
       throw new Error('No speech detected in the audio segment');
     }
 
-    return transcription.trim();
+    // Convert Whisper language name to ISO code
+    const detectedLanguage = result.language ? whisperLanguageToISO(result.language) : (language || 'auto');
+
+    return {
+      text: result.text.trim(),
+      language: detectedLanguage
+    };
 
   } catch (error) {
     throw new Error(`Whisper transcription failed: ${error.message}`);

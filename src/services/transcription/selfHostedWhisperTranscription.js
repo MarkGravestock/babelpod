@@ -1,9 +1,71 @@
 // Self-hosted Whisper API transcription
 
-// Keep track of the audio context and source across calls
-let persistentAudioContext = null;
-let persistentSource = null;
-let connectedAudioElement = null;
+/**
+ * Map Whisper language names to ISO 639-1 codes
+ * Whisper returns language names like "english", "spanish", "polish"
+ * Translation APIs need ISO codes like "en", "es", "pl"
+ */
+function whisperLanguageToISO(languageName) {
+  const languageMap = {
+    'english': 'en',
+    'spanish': 'es',
+    'french': 'fr',
+    'german': 'de',
+    'italian': 'it',
+    'portuguese': 'pt',
+    'dutch': 'nl',
+    'russian': 'ru',
+    'chinese': 'zh',
+    'japanese': 'ja',
+    'korean': 'ko',
+    'arabic': 'ar',
+    'turkish': 'tr',
+    'polish': 'pl',
+    'danish': 'da',
+    'swedish': 'sv',
+    'norwegian': 'no',
+    'finnish': 'fi',
+    'greek': 'el',
+    'czech': 'cs',
+    'hungarian': 'hu',
+    'romanian': 'ro',
+    'bulgarian': 'bg',
+    'ukrainian': 'uk',
+    'croatian': 'hr',
+    'serbian': 'sr',
+    'slovak': 'sk',
+    'slovenian': 'sl',
+    'lithuanian': 'lt',
+    'latvian': 'lv',
+    'estonian': 'et',
+    'thai': 'th',
+    'vietnamese': 'vi',
+    'indonesian': 'id',
+    'malay': 'ms',
+    'hindi': 'hi',
+    'bengali': 'bn',
+    'tamil': 'ta',
+    'telugu': 'te',
+    'hebrew': 'he',
+    'persian': 'fa',
+    'urdu': 'ur',
+    'catalan': 'ca',
+    'basque': 'eu',
+    'galician': 'gl'
+  };
+
+  const normalizedName = languageName?.toLowerCase().trim();
+  const isoCode = languageMap[normalizedName];
+
+  if (isoCode) {
+    console.log(`Mapped Whisper language "${languageName}" to ISO code "${isoCode}"`);
+    return isoCode;
+  }
+
+  // If not found in map, return as-is (might already be ISO code)
+  console.warn(`Unknown language name from Whisper: "${languageName}", using as-is`);
+  return languageName || 'auto';
+}
 
 /**
  * Record audio segment from audio element to a blob
@@ -14,12 +76,22 @@ let connectedAudioElement = null;
  */
 async function recordAudioSegment(audioElement, startTime, endTime) {
   return new Promise((resolve, reject) => {
-    let mediaRecorder = null;
+    let audioContext = null;
+    let source = null;
+    let tempAudio = null;
 
     const cleanup = () => {
       try {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
+        if (source) {
+          source.disconnect();
+        }
+        if (audioContext && audioContext.state !== 'closed') {
+          audioContext.close();
+        }
+        if (tempAudio) {
+          tempAudio.pause();
+          tempAudio.src = '';
+          tempAudio.load();
         }
       } catch (error) {
         console.error('Error during cleanup:', error);
@@ -27,39 +99,21 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
     };
 
     try {
-      // Create or reuse the AudioContext and MediaElementSource
-      if (!persistentAudioContext || persistentAudioContext.state === 'closed') {
-        persistentAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
+      // Create a temporary audio element for recording
+      // This prevents the "already connected" error on subsequent recordings
+      tempAudio = new Audio();
+      tempAudio.src = audioElement.src;
+      tempAudio.crossOrigin = audioElement.crossOrigin;
 
-      // Only create a new source if we haven't connected this audio element yet
-      if (!persistentSource || connectedAudioElement !== audioElement) {
-        // Disconnect previous source if it exists
-        if (persistentSource) {
-          try {
-            persistentSource.disconnect();
-          } catch (e) {
-            // Ignore disconnect errors
-          }
-        }
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaElementSource(tempAudio);
+      const destination = audioContext.createMediaStreamDestination();
 
-        // Create new source for this audio element
-        persistentSource = persistentAudioContext.createMediaElementSource(audioElement);
-        connectedAudioElement = audioElement;
+      // Connect to both the recorder and speakers
+      source.connect(destination);
+      source.connect(audioContext.destination);
 
-        // Connect to destination for audio output
-        persistentSource.connect(persistentAudioContext.destination);
-      }
-
-      // Create a new destination for recording each time
-      const destination = persistentAudioContext.createMediaStreamDestination();
-
-      // Temporarily connect to the recording destination
-      persistentSource.connect(destination);
-
-      mediaRecorder = new MediaRecorder(destination.stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      const mediaRecorder = new MediaRecorder(destination.stream);
       const chunks = [];
 
       mediaRecorder.ondataavailable = (e) => {
@@ -69,14 +123,11 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
       };
 
       mediaRecorder.onstop = () => {
-        // Disconnect from recording destination
-        try {
-          persistentSource.disconnect(destination);
-        } catch (e) {
-          // Ignore disconnect errors
-        }
+        const blob = new Blob(chunks, { type: 'audio/webm' });
 
-        const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
+        // Clean up AudioContext and disconnect source
+        cleanup();
+
         resolve(blob);
       };
 
@@ -86,9 +137,9 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
       };
 
       // Set audio to start time
-      audioElement.currentTime = startTime;
+      tempAudio.currentTime = startTime;
 
-      const playHandler = () => {
+      tempAudio.onplay = () => {
         mediaRecorder.start();
 
         // Stop recording after duration
@@ -98,16 +149,10 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
             mediaRecorder.stop();
           }
         }, duration);
-
-        // Remove event listener after it fires
-        audioElement.removeEventListener('play', playHandler);
       };
 
-      audioElement.addEventListener('play', playHandler);
-
-      audioElement.play().catch(error => {
+      tempAudio.play().catch(error => {
         cleanup();
-        audioElement.removeEventListener('play', playHandler);
         reject(new Error(`Failed to play audio: ${error.message}`));
       });
 
@@ -123,11 +168,12 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
  * @param {HTMLAudioElement} audioElement - The audio element to transcribe from
  * @param {number} startTime - Start time in seconds
  * @param {number} endTime - End time in seconds
- * @param {string} language - Language code (e.g., 'es', 'fr')
+ * @param {string} language - Language code (e.g., 'es', 'fr') or 'auto' for auto-detect
  * @param {string} apiUrl - Self-hosted Whisper API URL
- * @returns {Promise<string>} - The transcribed text
+ * @param {Blob} audioBuffer - Optional pre-recorded audio buffer (for continuous buffering strategy)
+ * @returns {Promise<{text: string, language: string}>} - The transcribed text and detected language
  */
-export async function transcribeWithSelfHostedWhisper(audioElement, startTime, endTime, language, apiUrl) {
+export async function transcribeWithSelfHostedWhisper(audioElement, startTime, endTime, language, apiUrl, audioBuffer = null) {
   if (!apiUrl) {
     throw new Error('Self-hosted Whisper API URL is required. Please configure it in Settings.');
   }
@@ -136,9 +182,17 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
   const baseUrl = apiUrl.replace(/\/$/, '');
 
   try {
-    // Step 1: Record the audio segment
-    console.log(`Recording audio segment from ${startTime}s to ${endTime}s`);
-    const audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    let audioBlob;
+
+    if (audioBuffer) {
+      // Step 1a: Use provided buffer (continuous buffering strategy)
+      console.log('Using pre-recorded audio buffer (continuous strategy)');
+      audioBlob = audioBuffer;
+    } else {
+      // Step 1b: Record the audio segment on-demand (traditional strategy)
+      console.log(`Recording audio segment from ${startTime}s to ${endTime}s (on-demand strategy)`);
+      audioBlob = await recordAudioSegment(audioElement, startTime, endTime);
+    }
 
     // Step 2: Send to self-hosted Whisper API
     // whisper-asr-webservice uses a different endpoint format
@@ -150,7 +204,8 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
       formData.append('language', language);
     }
     formData.append('task', 'transcribe');
-    formData.append('output', 'txt');
+    // Use json output to get detected language
+    formData.append('output', 'json');
 
     console.log(`Sending to self-hosted Whisper API at ${baseUrl}/asr...`);
     const response = await fetch(`${baseUrl}/asr`, {
@@ -159,19 +214,46 @@ export async function transcribeWithSelfHostedWhisper(audioElement, startTime, e
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      const errorText = await response.text().catch(() => '');
+      const errorMessage = errorText || `HTTP ${response.status}: ${response.statusText}`;
       throw new Error(`Self-hosted Whisper API error: ${errorMessage}`);
     }
 
-    const result = await response.text();
-    console.log('Self-hosted Whisper transcription:', result);
+    // whisper-asr-webservice returns JSON with 'json' output format
+    const contentType = response.headers.get('content-type');
+    let result;
+    let text;
+    let detectedLanguage = language || 'auto';
 
-    if (!result || result.trim() === '') {
+    if (contentType && contentType.includes('application/json')) {
+      // JSON response - should include detected language
+      result = await response.json();
+      console.log('Self-hosted Whisper transcription (JSON):', result);
+      text = result.text || '';
+
+      // Convert language name to ISO code if detected
+      if (result.language) {
+        detectedLanguage = whisperLanguageToISO(result.language);
+      } else {
+        detectedLanguage = language || 'auto';
+      }
+    } else {
+      // Plain text response - language detection not available
+      text = await response.text();
+      console.log('Self-hosted Whisper transcription (text):', text);
+      // When we get plain text, we can't determine the detected language
+      // Use the input language if provided, otherwise default to 'auto'
+      detectedLanguage = (language && language !== 'auto') ? language : 'auto';
+    }
+
+    if (!text || text.trim() === '') {
       throw new Error('No speech detected in the audio segment');
     }
 
-    return result.trim();
+    return {
+      text: text.trim(),
+      language: detectedLanguage
+    };
 
   } catch (error) {
     // Provide more helpful error messages

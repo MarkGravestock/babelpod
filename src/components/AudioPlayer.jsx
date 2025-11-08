@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { translateAudioSegment, speakText } from '../services/translationService';
 import { getCorsProxiedUrl, CORS_PROXIES } from '../services/rssService';
+import { AudioBufferManager } from '../services/audioBufferManager';
 import './AudioPlayer.css';
 
 export default function AudioPlayer({ episode, settings = {} }) {
   const audioRef = useRef(null);
+  const bufferManagerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -72,6 +74,63 @@ export default function AudioPlayer({ episode, settings = {} }) {
     };
   }, []);
 
+  // Initialize and manage audio buffer for continuous buffering strategy
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioSrc) return;
+
+    const bufferStrategy = settings.audioBufferStrategy || 'continuous';
+    const usesContinuousBuffer = bufferStrategy === 'continuous' &&
+      (settings.transcriptionMethod === 'whisper' || settings.transcriptionMethod === 'selfhosted');
+
+    if (usesContinuousBuffer) {
+      // Initialize buffer manager
+      if (!bufferManagerRef.current) {
+        console.log('Initializing continuous audio buffer');
+        bufferManagerRef.current = new AudioBufferManager(audio, rewindSeconds * 1000);
+      } else {
+        // Update source if episode changed
+        bufferManagerRef.current.updateSource(audio);
+      }
+
+      // Start buffering when audio starts playing
+      const handlePlay = () => {
+        if (bufferManagerRef.current && !bufferManagerRef.current.isRecording) {
+          bufferManagerRef.current.start().catch(err => {
+            console.error('Failed to start audio buffer:', err);
+          });
+        }
+      };
+
+      const handlePause = () => {
+        // Keep buffer running even when paused, so we can still translate recent audio
+      };
+
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('pause', handlePause);
+
+      return () => {
+        audio.removeEventListener('play', handlePlay);
+        audio.removeEventListener('pause', handlePause);
+      };
+    } else {
+      // Stop and cleanup buffer if strategy changed to on-demand
+      if (bufferManagerRef.current) {
+        console.log('Stopping continuous audio buffer (strategy changed to on-demand)');
+        bufferManagerRef.current.stop();
+        bufferManagerRef.current = null;
+      }
+    }
+
+    return () => {
+      // Cleanup on unmount
+      if (bufferManagerRef.current) {
+        bufferManagerRef.current.stop();
+        bufferManagerRef.current = null;
+      }
+    };
+  }, [audioSrc, settings.audioBufferStrategy, settings.transcriptionMethod, rewindSeconds]);
+
   const togglePlayPause = () => {
     const audio = audioRef.current;
     if (isPlaying) {
@@ -117,15 +176,29 @@ export default function AudioPlayer({ episode, settings = {} }) {
       const sourceLang = settings.sourceLang || 'auto';
       const targetLang = settings.targetLang || 'en';
 
-      setTranslationStatus('Transcribing audio...');
+      // Get buffered audio if using continuous strategy
+      let audioBuffer = null;
+      const bufferStrategy = settings.audioBufferStrategy || 'continuous';
+      if (bufferStrategy === 'continuous' && bufferManagerRef.current && bufferManagerRef.current.isRecording) {
+        try {
+          audioBuffer = bufferManagerRef.current.getBufferedAudio();
+          setTranslationStatus('Transcribing buffered audio... ⚡');
+        } catch (error) {
+          console.warn('Failed to get buffered audio, falling back to on-demand:', error.message);
+          setTranslationStatus('Recording audio segment...');
+        }
+      } else {
+        setTranslationStatus('Recording and transcribing audio...');
+      }
 
-      // Use the new transcription strategy pattern
+      // Use the transcription strategy pattern
       const result = await translateAudioSegment(
         audio,
         rewindSeconds,
         sourceLang,
         targetLang,
-        settings
+        settings,
+        audioBuffer  // Pass buffer if available
       );
 
       // Show transcribed text

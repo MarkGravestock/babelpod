@@ -10,7 +10,7 @@ export function isBrowserSpeechRecognitionSupported() {
  * @param {number} startTime - Start time in seconds
  * @param {number} endTime - End time in seconds
  * @param {string} language - Language code (e.g., 'es-ES', 'fr-FR')
- * @returns {Promise<string>} - The transcribed text
+ * @returns {Promise<{text: string, language: string}>} - The transcribed text and language
  */
 export async function transcribeWithBrowser(audioElement, startTime, endTime, language = 'es-ES') {
   if (!isBrowserSpeechRecognitionSupported()) {
@@ -71,7 +71,12 @@ export async function transcribeWithBrowser(audioElement, startTime, endTime, la
       recognition.onend = () => {
         cleanup();
         if (transcript.trim()) {
-          resolve(transcript.trim());
+          // Extract language code from full language (e.g., 'es-ES' -> 'es')
+          const langCode = language.split('-')[0];
+          resolve({
+            text: transcript.trim(),
+            language: langCode
+          });
         } else {
           reject(new Error('No speech detected in the audio segment'));
         }
