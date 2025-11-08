@@ -1,5 +1,10 @@
 // Self-hosted Whisper API transcription
 
+// Keep track of the audio context and source across calls
+let persistentAudioContext = null;
+let persistentSource = null;
+let connectedAudioElement = null;
+
 /**
  * Record audio segment from audio element to a blob
  * @param {HTMLAudioElement} audioElement - The audio element
@@ -9,15 +14,52 @@
  */
 async function recordAudioSegment(audioElement, startTime, endTime) {
   return new Promise((resolve, reject) => {
+    let mediaRecorder = null;
+
+    const cleanup = () => {
+      try {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
+    };
+
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createMediaElementSource(audioElement);
-      const destination = audioContext.createMediaStreamDestination();
+      // Create or reuse the AudioContext and MediaElementSource
+      if (!persistentAudioContext || persistentAudioContext.state === 'closed') {
+        persistentAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
 
-      source.connect(destination);
-      source.connect(audioContext.destination);
+      // Only create a new source if we haven't connected this audio element yet
+      if (!persistentSource || connectedAudioElement !== audioElement) {
+        // Disconnect previous source if it exists
+        if (persistentSource) {
+          try {
+            persistentSource.disconnect();
+          } catch (e) {
+            // Ignore disconnect errors
+          }
+        }
 
-      const mediaRecorder = new MediaRecorder(destination.stream);
+        // Create new source for this audio element
+        persistentSource = persistentAudioContext.createMediaElementSource(audioElement);
+        connectedAudioElement = audioElement;
+
+        // Connect to destination for audio output
+        persistentSource.connect(persistentAudioContext.destination);
+      }
+
+      // Create a new destination for recording each time
+      const destination = persistentAudioContext.createMediaStreamDestination();
+
+      // Temporarily connect to the recording destination
+      persistentSource.connect(destination);
+
+      mediaRecorder = new MediaRecorder(destination.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       const chunks = [];
 
       mediaRecorder.ondataavailable = (e) => {
@@ -27,15 +69,26 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        audioElement.pause();
+        // Disconnect from recording destination
+        try {
+          persistentSource.disconnect(destination);
+        } catch (e) {
+          // Ignore disconnect errors
+        }
+
+        const blob = new Blob(chunks, { type: 'audio/webm;codecs=opus' });
         resolve(blob);
+      };
+
+      mediaRecorder.onerror = (error) => {
+        cleanup();
+        reject(new Error(`MediaRecorder error: ${error.message || 'Unknown error'}`));
       };
 
       // Set audio to start time
       audioElement.currentTime = startTime;
 
-      audioElement.onplay = () => {
+      const playHandler = () => {
         mediaRecorder.start();
 
         // Stop recording after duration
@@ -45,13 +98,21 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
             mediaRecorder.stop();
           }
         }, duration);
+
+        // Remove event listener after it fires
+        audioElement.removeEventListener('play', playHandler);
       };
 
+      audioElement.addEventListener('play', playHandler);
+
       audioElement.play().catch(error => {
+        cleanup();
+        audioElement.removeEventListener('play', playHandler);
         reject(new Error(`Failed to play audio: ${error.message}`));
       });
 
     } catch (error) {
+      cleanup();
       reject(new Error(`Failed to record audio segment: ${error.message}`));
     }
   });
