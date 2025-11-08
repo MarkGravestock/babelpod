@@ -226,4 +226,55 @@ describe('AudioPlayer Integration Tests', () => {
       expect(translateButton).not.toBeDisabled();
     });
   });
+
+  it('should allow translating multiple times in a row without errors', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <AudioPlayer episode={mockEpisode} settings={mockSettings} />
+    );
+
+    // Get the audio element
+    const audioElement = container.querySelector('audio');
+    await waitFor(() => {
+      expect(audioElement).toBeTruthy();
+    });
+
+    // First translation
+    audioElement.currentTime = 30;
+    audioElement.dispatchEvent(new Event('timeupdate'));
+
+    const translateButton = screen.getByRole('button', { name: /rewind 15s & translate/i });
+    await user.click(translateButton);
+
+    // Wait for first translation to complete
+    await waitFor(() => {
+      expect(screen.getByText('Hola mundo')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Hello world')).toBeInTheDocument();
+    });
+
+    // Verify position was restored
+    expect(audioElement.currentTime).toBe(30);
+
+    // Second translation - this should not throw "already connected" error
+    audioElement.currentTime = 50;
+    audioElement.dispatchEvent(new Event('timeupdate'));
+
+    await user.click(translateButton);
+
+    // Wait for second translation to complete
+    await waitFor(() => {
+      expect(screen.queryByText(/transcribing/i)).not.toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Should still show the texts (might be the same mock data)
+    await waitFor(() => {
+      expect(screen.getByText('Hola mundo')).toBeInTheDocument();
+    });
+
+    // Verify position was restored after second translation
+    expect(audioElement.currentTime).toBe(50);
+  });
 });
