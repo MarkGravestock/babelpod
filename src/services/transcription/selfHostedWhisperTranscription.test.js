@@ -12,7 +12,7 @@ class MockMediaRecorder {
     this.onerror = null;
   }
 
-  start(timeslice) {
+  start(_timeslice) {
     this.state = 'recording';
     // Simulate data chunks being recorded
     setTimeout(() => {
