@@ -59,9 +59,30 @@
 
 ### Before Creating a Pull Request
 
+**CRITICAL: Sync with main before finishing**
+
+Before creating your PR, you **MUST** sync your branch with the latest main to avoid merge conflicts:
+
+```bash
+# Fetch latest changes
+git fetch origin main
+
+# Rebase your branch onto main
+git rebase origin/main
+
+# If conflicts occur, resolve them and continue:
+# 1. Fix conflicts in the files
+# 2. git add <resolved-files>
+# 3. git rebase --continue
+
+# Force push your rebased branch
+git push origin your-branch-name --force-with-lease
+```
+
 **Required Checklist:**
 
 - [ ] Branch was created from latest `main`
+- [ ] **Branch is synced with latest `main` (rebased) before PR**
 - [ ] Code passes linting with no errors (`npm run lint`)
 - [ ] All tests pass (`npm test`)
 - [ ] Build succeeds (`npm run build`)
@@ -73,12 +94,14 @@
 
 ### Creating a Pull Request
 
-1. **Push your branch**
+1. **Sync with main** (see above - this is REQUIRED)
+
+2. **Push your branch**
    ```bash
    git push -u origin your-branch-name
    ```
 
-2. **Create PR on GitHub**
+3. **Create PR on GitHub**
    - Provide a clear title and description
    - Link related issues
    - Add screenshots/videos for UI changes
