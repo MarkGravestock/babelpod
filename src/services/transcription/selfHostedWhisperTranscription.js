@@ -79,87 +79,144 @@ async function recordAudioSegment(audioElement, startTime, endTime) {
     let audioContext = null;
     let source = null;
     let tempAudio = null;
+    let mediaRecorder = null;
 
     const cleanup = () => {
       try {
+        if (tempAudio) {
+          tempAudio.pause();
+          tempAudio.onplay = null;
+          tempAudio.src = '';
+          tempAudio.load();
+        }
         if (source) {
           source.disconnect();
         }
         if (audioContext && audioContext.state !== 'closed') {
           audioContext.close();
         }
-        if (tempAudio) {
-          tempAudio.pause();
-          tempAudio.src = '';
-          tempAudio.load();
-        }
       } catch (error) {
         console.error('Error during cleanup:', error);
       }
     };
 
-    try {
-      // Create a temporary audio element for recording
-      // This prevents the "already connected" error on subsequent recordings
-      tempAudio = new Audio();
-      tempAudio.src = audioElement.src;
-      tempAudio.crossOrigin = audioElement.crossOrigin;
+    // Create a temporary audio element for recording
+    // This prevents the "already connected" error on subsequent recordings
+    tempAudio = new Audio();
+    tempAudio.src = audioElement.src;
+    tempAudio.crossOrigin = audioElement.crossOrigin;
+    tempAudio.preload = 'auto';
 
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaElementSource(tempAudio);
-      const destination = audioContext.createMediaStreamDestination();
-
-      // Connect to both the recorder and speakers
-      source.connect(destination);
-      source.connect(audioContext.destination);
-
-      const mediaRecorder = new MediaRecorder(destination.stream);
-      const chunks = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-
-        // Clean up AudioContext and disconnect source
-        cleanup();
-
-        resolve(blob);
-      };
-
-      mediaRecorder.onerror = (error) => {
-        cleanup();
-        reject(new Error(`MediaRecorder error: ${error.message || 'Unknown error'}`));
-      };
-
-      // Set audio to start time
-      tempAudio.currentTime = startTime;
-
-      tempAudio.onplay = () => {
-        mediaRecorder.start();
-
-        // Stop recording after duration
-        const duration = (endTime - startTime) * 1000;
-        setTimeout(() => {
-          if (mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-          }
-        }, duration);
-      };
-
-      tempAudio.play().catch(error => {
-        cleanup();
-        reject(new Error(`Failed to play audio: ${error.message}`));
-      });
-
-    } catch (error) {
+    // Wait for audio to be ready
+    const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error(`Failed to record audio segment: ${error.message}`));
-    }
+      reject(new Error('Audio loading timeout'));
+    }, 10000);
+
+    tempAudio.onloadedmetadata = () => {
+      clearTimeout(timeout);
+      console.log(`Audio loaded. Duration: ${tempAudio.duration}s`);
+
+      try {
+        // Set audio to start time and verify it's valid
+        if (startTime < 0 || startTime >= tempAudio.duration) {
+          throw new Error(`Invalid start time ${startTime}s (duration: ${tempAudio.duration}s)`);
+        }
+        let validEndTime = endTime;
+        if (endTime > tempAudio.duration) {
+          console.warn(`End time ${endTime}s exceeds duration ${tempAudio.duration}s, clamping to duration`);
+          validEndTime = tempAudio.duration;
+        }
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        source = audioContext.createMediaElementSource(tempAudio);
+        const destination = audioContext.createMediaStreamDestination();
+
+        // Connect to both the recorder and speakers
+        source.connect(destination);
+        source.connect(audioContext.destination);
+
+        // Specify mimeType to ensure FFmpeg compatibility
+        const mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          throw new Error(`MediaRecorder does not support ${mimeType}`);
+        }
+
+        mediaRecorder = new MediaRecorder(destination.stream, { mimeType });
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunks.push(e.data);
+            console.log(`Recorded chunk: ${e.data.size} bytes`);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          console.log(`Recording stopped. Total chunks: ${chunks.length}`);
+
+          if (chunks.length === 0) {
+            cleanup();
+            reject(new Error('No audio data was recorded'));
+            return;
+          }
+
+          const blob = new Blob(chunks, { type: mimeType });
+          console.log(`Created audio blob: ${blob.size} bytes`);
+
+          // Pause audio before cleanup
+          if (tempAudio) {
+            tempAudio.pause();
+          }
+
+          // Clean up AudioContext and disconnect source
+          cleanup();
+
+          resolve(blob);
+        };
+
+        mediaRecorder.onerror = (error) => {
+          cleanup();
+          reject(new Error(`MediaRecorder error: ${error.message || 'Unknown error'}`));
+        };
+
+        tempAudio.currentTime = startTime;
+
+        tempAudio.onplay = () => {
+          console.log(`Starting recording from ${startTime}s to ${validEndTime}s`);
+
+          // Request data every 100ms to ensure we get chunks
+          mediaRecorder.start(100);
+
+          // Stop recording after duration
+          const duration = (validEndTime - startTime) * 1000;
+          setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+              console.log('Stopping recording...');
+              mediaRecorder.stop();
+            }
+          }, duration);
+        };
+
+        tempAudio.play().catch(error => {
+          cleanup();
+          reject(new Error(`Failed to play audio: ${error.message}`));
+        });
+
+      } catch (error) {
+        cleanup();
+        reject(new Error(`Failed to record audio segment: ${error.message}`));
+      }
+    };
+
+    tempAudio.onerror = () => {
+      clearTimeout(timeout);
+      cleanup();
+      reject(new Error('Failed to load audio'));
+    };
+
+    // Trigger load
+    tempAudio.load();
   });
 }
 
